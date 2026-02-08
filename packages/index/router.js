@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const skillTaxonomy = require('../shared/skillTaxonomy');
 
 const router = express.Router();
 const SERVICES_FILE = path.join(__dirname, '../../data/index/services.json');
@@ -47,7 +48,7 @@ router.get('/health', (req, res) => {
 
 // Search services
 router.get('/api/search', (req, res) => {
-  const { q, skills, category } = req.query;
+  const { q, skills, category, skillCategory } = req.query;
   let services = loadServices();
   const reviews = loadReviews();
   
@@ -61,30 +62,47 @@ router.get('/api/search', (req, res) => {
     );
   }
   
-  // Filter by skills
+  // Filter by skill tags (comma-separated)
   if (skills) {
-    const skillArray = Array.isArray(skills) ? skills : [skills];
+    const skillArray = typeof skills === 'string' 
+      ? skills.split(',').map(s => s.trim().toLowerCase())
+      : (Array.isArray(skills) ? skills.map(s => s.toLowerCase()) : []);
+    
     services = services.filter(s => 
-      skillArray.some(sk => s.skills.includes(sk))
+      skillArray.some(sk => s.skills.map(ss => ss.toLowerCase()).includes(sk))
     );
   }
   
-  // Filter by category
+  // Filter by skill category (from taxonomy)
+  if (skillCategory) {
+    const categorySkills = skillTaxonomy.getSkillsByCategory(skillCategory);
+    services = services.filter(s => 
+      s.skills.some(sk => categorySkills.includes(sk.toLowerCase()))
+    );
+  }
+  
+  // Filter by service category (legacy)
   if (category) {
     services = services.filter(s => s.category === category);
   }
   
-  // Enrich with review data
+  // Enrich with review data and skill categories
   services = services.map(s => {
     const serviceReviews = reviews.filter(r => r.serviceId === s.id);
     const avgRating = serviceReviews.length > 0
       ? (serviceReviews.reduce((sum, r) => sum + r.rating, 0) / serviceReviews.length).toFixed(1)
       : null;
     
+    // Determine skill categories
+    const skillCategories = Array.from(
+      new Set(s.skills.map(sk => skillTaxonomy.getCategoryForTag(sk.toLowerCase())).filter(Boolean))
+    );
+    
     return {
       ...s,
       reviewCount: serviceReviews.length,
-      avgRating: avgRating ? parseFloat(avgRating) : null
+      avgRating: avgRating ? parseFloat(avgRating) : null,
+      skillCategories
     };
   });
   
@@ -150,13 +168,25 @@ router.post('/api/register', (req, res) => {
   
   const services = loadServices();
   
-  // Auto-categorize based on skills
+  // Normalize and validate skills
+  const normalized = skillTaxonomy.normalizeSkills(skills || []);
+  const allSkills = [...normalized.predefined, ...normalized.freeform];
+  
+  // Auto-categorize based on skills using taxonomy
   let category = 'other';
-  if (skills && skills.length > 0) {
-    if (skills.some(s => s.includes('ai') || s.includes('llm'))) category = 'ai';
-    else if (skills.some(s => s.includes('data'))) category = 'data';
-    else if (skills.some(s => s.includes('api'))) category = 'api';
-    else if (skills.some(s => s.includes('blockchain'))) category = 'blockchain';
+  const skillCategories = Array.from(
+    new Set(normalized.predefined.map(s => skillTaxonomy.getCategoryForTag(s)).filter(Boolean))
+  );
+  
+  if (skillCategories.length > 0) {
+    // Use primary skill category
+    category = skillCategories[0];
+  } else if (allSkills.length > 0) {
+    // Legacy fallback
+    if (allSkills.some(s => s.includes('ai') || s.includes('llm'))) category = 'ai';
+    else if (allSkills.some(s => s.includes('data'))) category = 'data';
+    else if (allSkills.some(s => s.includes('api'))) category = 'api';
+    else if (allSkills.some(s => s.includes('blockchain'))) category = 'blockchain';
   }
   
   const service = {
@@ -165,7 +195,8 @@ router.post('/api/register', (req, res) => {
     name,
     description,
     endpoints: endpoints || [],
-    skills: skills || [],
+    skills: allSkills,
+    skillCategories,
     docs_url: docs_url || null,
     category,
     views: 0,
@@ -267,6 +298,19 @@ router.get('/api/trending', (req, res) => {
   trending = trending.sort((a, b) => b.trendingScore - a.trendingScore).slice(0, 10);
   
   res.json(trending);
+});
+
+// Skill taxonomy endpoint
+router.get('/api/skills/taxonomy', (req, res) => {
+  const taxonomy = skillTaxonomy.getTaxonomy();
+  res.json({
+    categories: Object.keys(taxonomy).map(key => ({
+      id: key,
+      name: taxonomy[key].name,
+      tags: taxonomy[key].tags
+    })),
+    allTags: skillTaxonomy.getAllTags()
+  });
 });
 
 module.exports = router;

@@ -308,8 +308,17 @@
                 <button class="btn btn-large" onclick="searchServices()">Search</button>
                 <button class="btn btn-large secondary" onclick="openRegisterModal()">Register Service</button>
             </div>
-            <div class="categories" id="categories">
-                <!-- Categories loaded dynamically -->
+            <div style="margin-bottom: 1rem;">
+                <div style="color: #999; font-size: 0.9rem; margin-bottom: 0.5rem;">Filter by Skill Category:</div>
+                <div class="categories" id="skill-categories">
+                    <!-- Skill categories loaded dynamically -->
+                </div>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <div style="color: #999; font-size: 0.9rem; margin-bottom: 0.5rem;">Service Categories:</div>
+                <div class="categories" id="categories">
+                    <!-- Service categories loaded dynamically -->
+                </div>
             </div>
         </div>
         
@@ -375,6 +384,24 @@
     
     <script>
         let currentCategory = null;
+        let currentSkillCategory = null;
+        let selectedSkills = [];
+        
+        async function loadSkillTaxonomy() {
+            try {
+                const res = await fetch('/index/api/skills/taxonomy');
+                const taxonomy = await res.json();
+                
+                const container = document.getElementById('skill-categories');
+                container.innerHTML = taxonomy.categories.map(cat => `
+                    <div class="category-tag" onclick="filterBySkillCategory('${cat.id}')">
+                        ${cat.name}
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load skill taxonomy:', error);
+            }
+        }
         
         async function loadCategories() {
             try {
@@ -435,10 +462,19 @@
                         }
                     </div>
                     <div class="service-description">${s.description}</div>
+                    ${s.skillCategories && s.skillCategories.length > 0 
+                        ? `<div class="service-skills" style="margin-bottom: 0.5rem;">
+                            ${s.skillCategories.map(cat => 
+                                `<span class="skill-tag" style="background: rgba(0, 212, 255, 0.15); border-color: #00d4ff; color: #00d4ff;">${cat}</span>`
+                            ).join('')}
+                           </div>`
+                        : ''
+                    }
                     <div class="service-skills">
                         ${s.skills.slice(0, 5).map(sk => 
                             `<span class="skill-tag">${sk}</span>`
                         ).join('')}
+                        ${s.skills.length > 5 ? `<span class="skill-tag" style="opacity: 0.5;">+${s.skills.length - 5}</span>` : ''}
                     </div>
                     <div class="service-meta">
                         <span>${s.endpoints?.length || 0} endpoints</span>
@@ -451,7 +487,7 @@
         async function searchServices() {
             const query = document.getElementById('search-input').value;
             
-            if (!query && !currentCategory) {
+            if (!query && !currentCategory && !currentSkillCategory) {
                 loadAllServices();
                 return;
             }
@@ -459,7 +495,8 @@
             try {
                 let url = '/index/api/search?';
                 if (query) url += `q=${encodeURIComponent(query)}&`;
-                if (currentCategory) url += `category=${encodeURIComponent(currentCategory)}`;
+                if (currentCategory) url += `category=${encodeURIComponent(currentCategory)}&`;
+                if (currentSkillCategory) url += `skillCategory=${encodeURIComponent(currentSkillCategory)}`;
                 
                 const res = await fetch(url);
                 const services = await res.json();
@@ -467,12 +504,13 @@
                 renderServices('all-services', services);
                 
                 // Update trending section header
+                let title = '🔥 Trending Services';
+                if (query) title = `Search Results: "${query}"`;
+                else if (currentSkillCategory) title = `Skill Category: ${currentSkillCategory}`;
+                else if (currentCategory) title = `Category: ${currentCategory}`;
+                
                 document.querySelector('#trending-services').parentElement.querySelector('.section-title')
-                    .textContent = query 
-                        ? `Search Results: "${query}"`
-                        : currentCategory 
-                            ? `Category: ${currentCategory}`
-                            : '🔥 Trending Services';
+                    .textContent = title;
                 
                 renderServices('trending-services', services.slice(0, 6));
             } catch (error) {
@@ -480,12 +518,32 @@
             }
         }
         
+        function filterBySkillCategory(category) {
+            currentSkillCategory = currentSkillCategory === category ? null : category;
+            
+            // Update UI
+            document.querySelectorAll('#skill-categories .category-tag').forEach(tag => {
+                tag.classList.remove('active');
+            });
+            
+            if (currentSkillCategory) {
+                const activeTag = Array.from(document.querySelectorAll('#skill-categories .category-tag'))
+                    .find(tag => tag.textContent.toLowerCase().includes(category.toLowerCase()));
+                if (activeTag) activeTag.classList.add('active');
+            }
+            
+            searchServices();
+        }
+        
         function filterByCategory(category) {
             currentCategory = currentCategory === category ? null : category;
             
             // Update UI
-            document.querySelectorAll('.category-tag').forEach(tag => {
-                tag.classList.toggle('active', tag.textContent.startsWith(category));
+            document.querySelectorAll('#categories .category-tag').forEach(tag => {
+                tag.classList.remove('active');
+                if (tag.textContent.startsWith(category) && currentCategory) {
+                    tag.classList.add('active');
+                }
             });
             
             searchServices();
@@ -549,6 +607,7 @@
         }
         
         // Initial load
+        loadSkillTaxonomy();
         loadCategories();
         loadTrendingServices();
         loadAllServices();

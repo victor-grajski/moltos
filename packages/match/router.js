@@ -2,6 +2,7 @@ const express = require('express');
 const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
+const skillTaxonomy = require('../shared/skillTaxonomy');
 
 const router = express.Router();
 const MOLTBOOK_API = 'https://moltbook.com';
@@ -40,9 +41,8 @@ function saveAgents(agents) {
 }
 
 function extractSkills(text) {
-  if (!text) return [];
-  const lower = text.toLowerCase();
-  return SKILL_KEYWORDS.filter(skill => lower.includes(skill));
+  // Use taxonomy-based skill suggestion
+  return skillTaxonomy.suggestSkills(text);
 }
 
 async function moltbookFetch(endpoint) {
@@ -184,6 +184,124 @@ router.post('/api/scrape', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// --- Skill Taxonomy Endpoints ---
+
+router.get('/api/skills/taxonomy', (req, res) => {
+  const taxonomy = skillTaxonomy.getTaxonomy();
+  res.json({
+    categories: Object.keys(taxonomy).map(key => ({
+      id: key,
+      name: taxonomy[key].name,
+      tags: taxonomy[key].tags
+    })),
+    allTags: skillTaxonomy.getAllTags()
+  });
+});
+
+router.post('/api/agents/:id/skills', (req, res) => {
+  const agentId = req.params.id;
+  const { skills } = req.body;
+  
+  if (!Array.isArray(skills)) {
+    return res.status(400).json({ error: 'skills must be an array' });
+  }
+  
+  const agents = loadAgents();
+  const agent = agents[agentId];
+  
+  if (!agent) {
+    return res.status(404).json({ error: 'Agent not found' });
+  }
+  
+  // Normalize and validate skills
+  const normalized = skillTaxonomy.normalizeSkills(skills);
+  agent.skills = [...normalized.predefined, ...normalized.freeform];
+  agent.skillCategories = Array.from(
+    new Set(normalized.predefined.map(s => skillTaxonomy.getCategoryForTag(s)).filter(Boolean))
+  );
+  agent.lastUpdated = new Date().toISOString();
+  
+  saveAgents(agents);
+  
+  res.json({
+    success: true,
+    agent: agentId,
+    skills: agent.skills,
+    categories: agent.skillCategories,
+    breakdown: normalized
+  });
+});
+
+router.get('/api/search', (req, res) => {
+  const agents = loadAgents();
+  const { category, skill, q } = req.query;
+  
+  let results = Object.values(agents);
+  
+  // Filter by category
+  if (category) {
+    const categorySkills = skillTaxonomy.getSkillsByCategory(category);
+    results = results.filter(a => 
+      a.skills.some(s => categorySkills.includes(s.toLowerCase()))
+    );
+  }
+  
+  // Filter by specific skill
+  if (skill) {
+    const skills = Array.isArray(skill) ? skill : [skill];
+    results = results.filter(a => 
+      skills.some(s => a.skills.includes(s.toLowerCase()))
+    );
+  }
+  
+  // Text search
+  if (q) {
+    const query = q.toLowerCase();
+    results = results.filter(a => 
+      a.name.toLowerCase().includes(query) ||
+      a.bio.toLowerCase().includes(query) ||
+      a.skills.some(s => s.toLowerCase().includes(query))
+    );
+  }
+  
+  // Calculate match scores if filtering
+  if (category || skill) {
+    const targetSkills = skill 
+      ? (Array.isArray(skill) ? skill : [skill])
+      : skillTaxonomy.getSkillsByCategory(category);
+    
+    results = results.map(a => ({
+      ...a,
+      matchScore: targetSkills.filter(s => a.skills.includes(s.toLowerCase())).length
+    })).sort((a, b) => b.matchScore - a.matchScore);
+  }
+  
+  res.json(results);
+});
+
+router.get('/api/compatibility', (req, res) => {
+  const { agent1, agent2 } = req.query;
+  
+  if (!agent1 || !agent2) {
+    return res.status(400).json({ error: 'Provide agent1 and agent2 parameters' });
+  }
+  
+  const agents = loadAgents();
+  const a1 = agents[agent1];
+  const a2 = agents[agent2];
+  
+  if (!a1 || !a2) {
+    return res.status(404).json({ error: 'One or both agents not found' });
+  }
+  
+  const compatibility = skillTaxonomy.calculateCompatibility(a1.skills, a2.skills);
+  
+  res.json({
+    agents: [agent1, agent2],
+    compatibility
+  });
 });
 
 module.exports = router;
