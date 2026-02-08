@@ -1,0 +1,34 @@
+{
+  "types": [
+    {
+      "id": "e240s933wfw6tesf",
+      "operatorId": "bwn0xfjhudtkofjj",
+      "name": "Wallet Balance Alert",
+      "category": "wallet",
+      "description": "Get notified when a wallet balance goes above or below a threshold.",
+      "price": 0.01,
+      "executorId": "wallet-balance",
+      "status": "active",
+      "createdAt": "2026-02-08T22:15:51.502Z",
+      "stats": {
+        "instances": 0,
+        "triggers": 0
+      }
+    },
+    {
+      "id": "ageqyxsmxyng21ym",
+      "operatorId": "bwn0xfjhudtkofjj",
+      "name": "Token Price Alert",
+      "category": "price",
+      "description": "Get notified when a token price crosses a threshold.",
+      "price": 0.01,
+      "executorId": "token-price",
+      "status": "active",
+      "createdAt": "2026-02-08T22:15:51.505Z",
+      "stats": {
+        "instances": 0,
+        "triggers": 0
+      }
+    }
+  ]
+}

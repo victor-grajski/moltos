@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "id": "24be0639-f28c-49e8-8275-da98909aaf9f",
+    "eventType": "heartbeat",
+    "type": "heartbeat",
+    "source": "test-agent",
+    "agent": "test-agent",
+    "metadata": {
+      "test": true
+    },
+    "timestamp": "2026-02-08T22:15:57.094Z"
+  }
+]

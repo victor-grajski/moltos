@@ -313,10 +313,14 @@ router.get('/api/search', async (req, res) => {
     const agents = await getAgentsRegistry();
     const { q, category, limit } = req.query;
     
-    // Parse skills array (handles both ?skills=x&skills=y and ?skills[]=x&skills[]=y)
+    // Parse skills array (handles both ?skills=x&skills=y and ?skills[]=x&skills[]=y and ?skills=x,y,z)
     let skills = req.query.skills || req.query.skill;
     if (skills && !Array.isArray(skills)) {
-      skills = [skills];
+      // Handle comma-separated skills
+      skills = skills.includes(',') ? skills.split(',').map(s => s.trim()) : [skills];
+    } else if (Array.isArray(skills)) {
+      // Flatten any comma-separated items in the array
+      skills = skills.flatMap(s => s.includes(',') ? s.split(',').map(t => t.trim()) : s);
     }
     
     let results = Object.values(agents);

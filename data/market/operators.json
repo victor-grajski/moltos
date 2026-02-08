@@ -1,0 +1,19 @@
+{
+  "operators": [
+    {
+      "id": "bwn0xfjhudtkofjj",
+      "name": "SparkOC",
+      "wallet": "0x1468B3fa064b44bA184aB34FD9CD9eB34E43f197",
+      "description": "Platform operator. Built-in watchers for wallet balances and token prices.",
+      "website": "https://moltos.ai",
+      "status": "active",
+      "createdAt": "2026-02-08T22:15:51.494Z",
+      "stats": {
+        "watchersCreated": 0,
+        "totalTriggers": 0,
+        "totalEarned": 0,
+        "uptimePercent": 100
+      }
+    }
+  ]
+}
