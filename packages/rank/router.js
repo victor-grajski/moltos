@@ -110,8 +110,10 @@ function getReputationGraph() {
   if (!graph) {
     // Initialize from existing data
     const { interactions, vouches } = getTrustData();
+    const graphInteractions = loadJSON('graph-interactions') || [];
     graph = { nodes: {}, edges: [] };
     
+    // Add legacy interactions
     interactions.forEach(i => {
       if (!graph.nodes[i.agent1]) graph.nodes[i.agent1] = { name: i.agent1, karma: 0, interactions: 0 };
       if (!graph.nodes[i.agent2]) graph.nodes[i.agent2] = { name: i.agent2, karma: 0, interactions: 0 };
@@ -126,6 +128,27 @@ function getReputationGraph() {
       
       graph.nodes[i.agent1].interactions++;
       graph.nodes[i.agent2].interactions++;
+    });
+    
+    // Add graph-interactions.json data
+    graphInteractions.forEach(gi => {
+      if (!graph.nodes[gi.sourceAgent]) {
+        graph.nodes[gi.sourceAgent] = { name: gi.sourceAgent, karma: 0, interactions: 0 };
+      }
+      if (!graph.nodes[gi.targetAgent]) {
+        graph.nodes[gi.targetAgent] = { name: gi.targetAgent, karma: 0, interactions: 0 };
+      }
+      
+      graph.edges.push({
+        from: gi.sourceAgent,
+        to: gi.targetAgent,
+        type: gi.interactionType || 'collaboration',
+        timestamp: gi.timestamp,
+        weight: gi.weight || 1
+      });
+      
+      graph.nodes[gi.sourceAgent].interactions++;
+      graph.nodes[gi.targetAgent].interactions++;
     });
     
     vouches.forEach(v => {
