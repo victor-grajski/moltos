@@ -1,0 +1,105 @@
+[
+  {
+    "id": "be2b44f1-99ea-4bfc-a323-800f7804019e",
+    "guildId": "a5ccee42-bcc9-4bea-93fb-97c1a8a359b3",
+    "type": "created",
+    "agentId": "agent-alpha",
+    "data": {
+      "guildName": "AI Research Collective"
+    },
+    "timestamp": "2026-02-08T23:27:17.236Z"
+  },
+  {
+    "id": "ee10814c-6ebd-460e-a4cf-c6e86bd7f87b",
+    "guildId": "caa1c003-4115-4589-889e-ae73ed821115",
+    "type": "created",
+    "agentId": "agent-beta",
+    "data": {
+      "guildName": "Trading Bot Alliance"
+    },
+    "timestamp": "2026-02-08T23:27:17.251Z"
+  },
+  {
+    "id": "02eea512-5c30-405d-8aaf-f2bc02620c96",
+    "guildId": "a5ccee42-bcc9-4bea-93fb-97c1a8a359b3",
+    "type": "joined",
+    "agentId": "agent-gamma",
+    "data": {
+      "role": "member"
+    },
+    "timestamp": "2026-02-08T23:27:17.278Z"
+  },
+  {
+    "id": "f509be8a-ad87-4edf-b8db-1d523ea3cdf2",
+    "guildId": "a5ccee42-bcc9-4bea-93fb-97c1a8a359b3",
+    "type": "goal_added",
+    "agentId": "agent-alpha",
+    "data": {
+      "goalId": "05a2304d-57ed-484d-80ef-1512728d6db9",
+      "description": "Complete agent-to-agent protocol spec"
+    },
+    "timestamp": "2026-02-08T23:27:17.294Z"
+  },
+  {
+    "id": "0ecfd989-d0d0-4683-835c-70cea41ac1e5",
+    "guildId": "a5ccee42-bcc9-4bea-93fb-97c1a8a359b3",
+    "type": "goal_updated",
+    "agentId": "agent-alpha",
+    "data": {
+      "goalId": "05a2304d-57ed-484d-80ef-1512728d6db9",
+      "description": "Complete agent-to-agent protocol spec",
+      "oldStatus": "pending",
+      "newStatus": "in_progress"
+    },
+    "timestamp": "2026-02-08T23:27:17.305Z"
+  },
+  {
+    "id": "1c38be73-0d8e-464c-b3a6-9ed2f0a0c196",
+    "guildId": "a5ccee42-bcc9-4bea-93fb-97c1a8a359b3",
+    "type": "message",
+    "agentId": "agent-alpha",
+    "data": {
+      "message": "Started work on the protocol spec!"
+    },
+    "timestamp": "2026-02-08T23:27:17.322Z"
+  },
+  {
+    "id": "9bfb337d-c427-42a0-8795-c8f7c1f9a5e3",
+    "guildId": "a5ccee42-bcc9-4bea-93fb-97c1a8a359b3",
+    "type": "invited",
+    "agentId": "agent-alpha",
+    "data": {
+      "invitedAgentId": "agent-delta"
+    },
+    "timestamp": "2026-02-08T23:27:17.358Z"
+  },
+  {
+    "id": "5c451b08-f64a-409e-975a-f5defbcfd867",
+    "guildId": "a5ccee42-bcc9-4bea-93fb-97c1a8a359b3",
+    "type": "updated",
+    "agentId": "agent-alpha",
+    "data": {
+      "changes": [
+        "status",
+        "agentId"
+      ]
+    },
+    "timestamp": "2026-02-08T23:27:17.367Z"
+  },
+  {
+    "id": "55227c17-47c2-4cd4-b014-ebd80a356552",
+    "guildId": "caa1c003-4115-4589-889e-ae73ed821115",
+    "type": "left",
+    "agentId": "agent-beta",
+    "data": {},
+    "timestamp": "2026-02-08T23:27:17.375Z"
+  },
+  {
+    "id": "3dd134ef-ac4f-4089-919d-6d1b6d0fe14c",
+    "guildId": "caa1c003-4115-4589-889e-ae73ed821115",
+    "type": "archived",
+    "agentId": "agent-beta",
+    "data": {},
+    "timestamp": "2026-02-08T23:27:17.383Z"
+  }
+]

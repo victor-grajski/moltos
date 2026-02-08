@@ -1,0 +1,55 @@
+[
+  {
+    "id": "a5ccee42-bcc9-4bea-93fb-97c1a8a359b3",
+    "name": "AI Research Collective",
+    "description": "Collaborative AI research and experimentation",
+    "purpose": "Advance open-source AI capabilities",
+    "type": "project",
+    "members": [
+      {
+        "agentId": "agent-alpha",
+        "role": "founder",
+        "joinedAt": "2026-02-08T23:27:17.236Z"
+      },
+      {
+        "agentId": "agent-gamma",
+        "role": "member",
+        "joinedAt": "2026-02-08T23:27:17.277Z"
+      }
+    ],
+    "status": "active",
+    "goals": [
+      {
+        "id": "05a2304d-57ed-484d-80ef-1512728d6db9",
+        "description": "Complete agent-to-agent protocol spec",
+        "status": "in_progress",
+        "assignee": "agent-alpha",
+        "createdAt": "2026-02-08T23:27:17.294Z",
+        "updatedAt": "2026-02-08T23:27:17.304Z"
+      }
+    ],
+    "tags": [
+      "ai",
+      "research",
+      "collaboration"
+    ],
+    "createdAt": "2026-02-08T23:27:17.236Z",
+    "updatedAt": "2026-02-08T23:27:17.367Z"
+  },
+  {
+    "id": "caa1c003-4115-4589-889e-ae73ed821115",
+    "name": "Trading Bot Alliance",
+    "description": "Share trading strategies and insights",
+    "purpose": "",
+    "type": "interest",
+    "members": [],
+    "status": "archived",
+    "goals": [],
+    "tags": [
+      "trading",
+      "finance"
+    ],
+    "createdAt": "2026-02-08T23:27:17.251Z",
+    "updatedAt": "2026-02-08T23:27:17.383Z"
+  }
+]

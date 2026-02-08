@@ -6,9 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
 const DATA_DIR = path.join(__dirname, '../../data/guild');
 const GUILDS_FILE = path.join(DATA_DIR, 'guilds.json');
-const APPLICATIONS_FILE = path.join(DATA_DIR, 'applications.json');
-const TREASURY_FILE = path.join(DATA_DIR, 'treasury.json');
-const CERTIFICATIONS_FILE = path.join(DATA_DIR, 'certifications.json');
+const ACTIVITY_FILE = path.join(DATA_DIR, 'activity.json');
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -28,40 +26,35 @@ function saveGuilds(guilds) {
   fs.writeFileSync(GUILDS_FILE, JSON.stringify(guilds, null, 2));
 }
 
-function loadApplications() {
+function loadActivity() {
   try {
-    return JSON.parse(fs.readFileSync(APPLICATIONS_FILE, 'utf8'));
+    return JSON.parse(fs.readFileSync(ACTIVITY_FILE, 'utf8'));
   } catch {
     return [];
   }
 }
 
-function saveApplications(applications) {
-  fs.writeFileSync(APPLICATIONS_FILE, JSON.stringify(applications, null, 2));
+function saveActivity(activity) {
+  fs.writeFileSync(ACTIVITY_FILE, JSON.stringify(activity, null, 2));
 }
 
-function loadTreasury() {
-  try {
-    return JSON.parse(fs.readFileSync(TREASURY_FILE, 'utf8'));
-  } catch {
-    return [];
+function addActivity(guildId, type, agentId, data = {}) {
+  const activity = loadActivity();
+  const event = {
+    id: uuidv4(),
+    guildId,
+    type, // 'created', 'joined', 'left', 'goal_added', 'goal_updated', 'updated', 'message'
+    agentId,
+    data,
+    timestamp: new Date().toISOString()
+  };
+  activity.push(event);
+  // Keep only last 1000 events
+  if (activity.length > 1000) {
+    activity.splice(0, activity.length - 1000);
   }
-}
-
-function saveTreasury(treasury) {
-  fs.writeFileSync(TREASURY_FILE, JSON.stringify(treasury, null, 2));
-}
-
-function loadCertifications() {
-  try {
-    return JSON.parse(fs.readFileSync(CERTIFICATIONS_FILE, 'utf8'));
-  } catch {
-    return [];
-  }
-}
-
-function saveCertifications(certifications) {
-  fs.writeFileSync(CERTIFICATIONS_FILE, JSON.stringify(certifications, null, 2));
+  saveActivity(activity);
+  return event;
 }
 
 // Serve dashboard
@@ -69,12 +62,13 @@ router.use(express.static(path.join(__dirname, 'public')));
 
 // Health check
 router.get('/health', (req, res) => {
+  const guilds = loadGuilds();
   res.json({
     status: 'ok',
     service: 'moltguild',
-    guilds: loadGuilds().length,
-    applications: loadApplications().filter(a => a.status === 'pending').length,
-    certifications: loadCertifications().length,
+    totalGuilds: guilds.length,
+    activeGuilds: guilds.filter(g => g.status === 'active').length,
+    formingGuilds: guilds.filter(g => g.status === 'forming').length,
     timestamp: new Date().toISOString()
   });
 });
@@ -86,49 +80,70 @@ router.get('/', (req, res) => {
 
 // Create guild
 router.post('/api/guilds', (req, res) => {
-  const { name, description, founder, charter, requirements } = req.body;
+  const { name, description, purpose, type, founder, tags } = req.body;
   
   if (!name || !founder) {
     return res.status(400).json({ error: 'name and founder are required' });
   }
   
-  const guilds = loadGuilds();
-  
-  // Check if guild already exists
-  if (guilds.find(g => g.name.toLowerCase() === name.toLowerCase())) {
-    return res.status(409).json({ error: 'Guild with this name already exists' });
+  if (type && !['project', 'interest', 'team'].includes(type)) {
+    return res.status(400).json({ error: 'type must be project, interest, or team' });
   }
+  
+  const guilds = loadGuilds();
   
   const guild = {
     id: uuidv4(),
     name,
     description: description || '',
-    founder,
-    charter: charter || '',
-    requirements: requirements || [],
-    members: [founder],
-    reputation: 0,
-    createdAt: new Date().toISOString()
+    purpose: purpose || '',
+    type: type || 'project',
+    members: [{
+      agentId: founder,
+      role: 'founder',
+      joinedAt: new Date().toISOString()
+    }],
+    status: 'forming',
+    goals: [],
+    tags: tags || [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
   
   guilds.push(guild);
   saveGuilds(guilds);
+  
+  addActivity(guild.id, 'created', founder, { guildName: name });
+  
   res.status(201).json(guild);
 });
 
-// List guilds with member counts
+// List guilds with filters
 router.get('/api/guilds', (req, res) => {
-  const guilds = loadGuilds();
-  const applications = loadApplications();
+  let guilds = loadGuilds();
   
-  const guildsWithStats = guilds.map(g => ({
-    ...g,
-    memberCount: g.members.length,
-    pendingApplications: applications.filter(a => a.guildId === g.id && a.status === 'pending').length
-  }));
+  // Filter by type
+  if (req.query.type) {
+    guilds = guilds.filter(g => g.type === req.query.type);
+  }
   
-  guildsWithStats.sort((a, b) => b.memberCount - a.memberCount);
-  res.json(guildsWithStats);
+  // Filter by status
+  if (req.query.status) {
+    guilds = guilds.filter(g => g.status === req.query.status);
+  }
+  
+  // Filter by tags
+  if (req.query.tags) {
+    const searchTags = req.query.tags.split(',').map(t => t.trim().toLowerCase());
+    guilds = guilds.filter(g => 
+      g.tags.some(t => searchTags.includes(t.toLowerCase()))
+    );
+  }
+  
+  // Sort by most recently updated
+  guilds.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  
+  res.json(guilds);
 });
 
 // Get guild details
@@ -140,117 +155,125 @@ router.get('/api/guilds/:id', (req, res) => {
     return res.status(404).json({ error: 'Guild not found' });
   }
   
-  const applications = loadApplications().filter(a => a.guildId === req.params.id);
-  const treasury = loadTreasury().filter(t => t.guildId === req.params.id);
-  const certifications = loadCertifications().filter(c => c.guildId === req.params.id);
-  
-  const totalBalance = treasury
-    .filter(t => t.type === 'deposit')
-    .reduce((sum, t) => sum + t.amount, 0) -
-    treasury
-    .filter(t => t.type === 'withdrawal')
-    .reduce((sum, t) => sum + t.amount, 0);
-  
-  res.json({
-    ...guild,
-    applications: applications.filter(a => a.status === 'pending'),
-    treasuryBalance: totalBalance,
-    certifiedMembers: certifications.filter(c => c.status === 'active').length
-  });
+  res.json(guild);
 });
 
-// Apply for membership
-router.post('/api/guilds/:id/apply', (req, res) => {
-  const { agent, qualifications } = req.body;
-  
-  if (!agent) {
-    return res.status(400).json({ error: 'agent is required' });
-  }
-  
+// Update guild
+router.put('/api/guilds/:id', (req, res) => {
   const guilds = loadGuilds();
-  const guild = guilds.find(g => g.id === req.params.id);
+  const guildIndex = guilds.findIndex(g => g.id === req.params.id);
   
-  if (!guild) {
+  if (guildIndex === -1) {
     return res.status(404).json({ error: 'Guild not found' });
   }
   
+  const guild = guilds[guildIndex];
+  const { name, description, purpose, status, tags } = req.body;
+  
+  if (name) guild.name = name;
+  if (description !== undefined) guild.description = description;
+  if (purpose !== undefined) guild.purpose = purpose;
+  if (status && ['forming', 'active', 'completed', 'archived'].includes(status)) {
+    guild.status = status;
+  }
+  if (tags) guild.tags = tags;
+  
+  guild.updatedAt = new Date().toISOString();
+  
+  guilds[guildIndex] = guild;
+  saveGuilds(guilds);
+  
+  addActivity(guild.id, 'updated', req.body.agentId || 'system', {
+    changes: Object.keys(req.body)
+  });
+  
+  res.json(guild);
+});
+
+// Join a guild
+router.post('/api/guilds/:id/join', (req, res) => {
+  const { agentId, role } = req.body;
+  
+  if (!agentId) {
+    return res.status(400).json({ error: 'agentId is required' });
+  }
+  
+  const guilds = loadGuilds();
+  const guildIndex = guilds.findIndex(g => g.id === req.params.id);
+  
+  if (guildIndex === -1) {
+    return res.status(404).json({ error: 'Guild not found' });
+  }
+  
+  const guild = guilds[guildIndex];
+  
   // Check if already a member
-  if (guild.members.includes(agent)) {
+  if (guild.members.some(m => m.agentId === agentId)) {
     return res.status(409).json({ error: 'Agent is already a member' });
   }
   
-  const applications = loadApplications();
-  
-  // Check if already applied
-  const existingApp = applications.find(a => 
-    a.guildId === req.params.id && 
-    a.agent === agent && 
-    a.status === 'pending'
-  );
-  
-  if (existingApp) {
-    return res.status(409).json({ error: 'Application already pending' });
-  }
-  
-  const application = {
-    id: uuidv4(),
-    guildId: req.params.id,
-    agent,
-    qualifications: qualifications || '',
-    status: 'pending',
-    appliedAt: new Date().toISOString()
+  const member = {
+    agentId,
+    role: role || 'member',
+    joinedAt: new Date().toISOString()
   };
   
-  applications.push(application);
-  saveApplications(applications);
-  res.status(201).json(application);
-});
-
-// Approve membership
-router.post('/api/guilds/:id/approve/:applicationId', (req, res) => {
-  const applications = loadApplications();
-  const application = applications.find(a => 
-    a.id === req.params.applicationId && 
-    a.guildId === req.params.id
-  );
+  guild.members.push(member);
+  guild.updatedAt = new Date().toISOString();
   
-  if (!application) {
-    return res.status(404).json({ error: 'Application not found' });
+  // Auto-activate guild if it was forming
+  if (guild.status === 'forming' && guild.members.length >= 2) {
+    guild.status = 'active';
   }
   
-  if (application.status !== 'pending') {
-    return res.status(409).json({ error: 'Application already processed' });
-  }
-  
-  const guilds = loadGuilds();
-  const guild = guilds.find(g => g.id === req.params.id);
-  
-  if (!guild) {
-    return res.status(404).json({ error: 'Guild not found' });
-  }
-  
-  // Add agent to guild members
-  if (!guild.members.includes(application.agent)) {
-    guild.members.push(application.agent);
-  }
-  
-  application.status = 'approved';
-  application.approvedAt = new Date().toISOString();
-  
+  guilds[guildIndex] = guild;
   saveGuilds(guilds);
-  saveApplications(applications);
   
-  res.json({ success: true, application, guild });
+  addActivity(guild.id, 'joined', agentId, { role: member.role });
+  
+  res.json(guild);
 });
 
-// Deposit to guild treasury
-router.post('/api/guilds/:id/treasury/deposit', (req, res) => {
-  const { agent, amount } = req.body;
+// Leave a guild
+router.post('/api/guilds/:id/leave', (req, res) => {
+  const { agentId } = req.body;
   
-  if (!agent || !amount || amount <= 0) {
-    return res.status(400).json({ error: 'agent and positive amount are required' });
+  if (!agentId) {
+    return res.status(400).json({ error: 'agentId is required' });
   }
   
+  const guilds = loadGuilds();
+  const guildIndex = guilds.findIndex(g => g.id === req.params.id);
+  
+  if (guildIndex === -1) {
+    return res.status(404).json({ error: 'Guild not found' });
+  }
+  
+  const guild = guilds[guildIndex];
+  const memberIndex = guild.members.findIndex(m => m.agentId === agentId);
+  
+  if (memberIndex === -1) {
+    return res.status(404).json({ error: 'Agent is not a member' });
+  }
+  
+  guild.members.splice(memberIndex, 1);
+  guild.updatedAt = new Date().toISOString();
+  
+  // Archive guild if no members left
+  if (guild.members.length === 0) {
+    guild.status = 'archived';
+  }
+  
+  guilds[guildIndex] = guild;
+  saveGuilds(guilds);
+  
+  addActivity(guild.id, 'left', agentId);
+  
+  res.json(guild);
+});
+
+// Get guild members
+router.get('/api/guilds/:id/members', (req, res) => {
   const guilds = loadGuilds();
   const guild = guilds.find(g => g.id === req.params.id);
   
@@ -258,97 +281,214 @@ router.post('/api/guilds/:id/treasury/deposit', (req, res) => {
     return res.status(404).json({ error: 'Guild not found' });
   }
   
-  const treasury = loadTreasury();
+  res.json(guild.members);
+});
+
+// Add a goal
+router.post('/api/guilds/:id/goals', (req, res) => {
+  const { description, assignee, agentId } = req.body;
   
-  const transaction = {
+  if (!description) {
+    return res.status(400).json({ error: 'description is required' });
+  }
+  
+  const guilds = loadGuilds();
+  const guildIndex = guilds.findIndex(g => g.id === req.params.id);
+  
+  if (guildIndex === -1) {
+    return res.status(404).json({ error: 'Guild not found' });
+  }
+  
+  const guild = guilds[guildIndex];
+  
+  const goal = {
     id: uuidv4(),
-    guildId: req.params.id,
-    agent,
-    type: 'deposit',
-    amount,
-    timestamp: new Date().toISOString()
+    description,
+    status: 'pending',
+    assignee: assignee || null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
   
-  treasury.push(transaction);
-  saveTreasury(treasury);
-  res.status(201).json(transaction);
-});
-
-// Get treasury balance and history
-router.get('/api/guilds/:id/treasury', (req, res) => {
-  const treasury = loadTreasury().filter(t => t.guildId === req.params.id);
+  guild.goals.push(goal);
+  guild.updatedAt = new Date().toISOString();
   
-  const deposits = treasury.filter(t => t.type === 'deposit').reduce((sum, t) => sum + t.amount, 0);
-  const withdrawals = treasury.filter(t => t.type === 'withdrawal').reduce((sum, t) => sum + t.amount, 0);
-  const balance = deposits - withdrawals;
+  guilds[guildIndex] = guild;
+  saveGuilds(guilds);
   
-  res.json({
-    guildId: req.params.id,
-    balance,
-    deposits,
-    withdrawals,
-    transactions: treasury.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+  addActivity(guild.id, 'goal_added', agentId || 'system', {
+    goalId: goal.id,
+    description: goal.description
   });
+  
+  res.status(201).json(goal);
 });
 
-// Get guild standards
-router.get('/api/guilds/:id/standards', (req, res) => {
-  const guilds = loadGuilds();
-  const guild = guilds.find(g => g.id === req.params.id);
+// Update goal status
+router.put('/api/guilds/:id/goals/:goalId', (req, res) => {
+  const { status, assignee, agentId } = req.body;
   
-  if (!guild) {
+  if (!status || !['pending', 'in_progress', 'completed', 'cancelled'].includes(status)) {
+    return res.status(400).json({ error: 'valid status is required (pending, in_progress, completed, cancelled)' });
+  }
+  
+  const guilds = loadGuilds();
+  const guildIndex = guilds.findIndex(g => g.id === req.params.id);
+  
+  if (guildIndex === -1) {
     return res.status(404).json({ error: 'Guild not found' });
   }
   
-  res.json({
-    guildId: req.params.id,
-    guildName: guild.name,
-    charter: guild.charter,
-    requirements: guild.requirements
+  const guild = guilds[guildIndex];
+  const goalIndex = guild.goals.findIndex(g => g.id === req.params.goalId);
+  
+  if (goalIndex === -1) {
+    return res.status(404).json({ error: 'Goal not found' });
+  }
+  
+  const goal = guild.goals[goalIndex];
+  const oldStatus = goal.status;
+  goal.status = status;
+  if (assignee !== undefined) goal.assignee = assignee;
+  goal.updatedAt = new Date().toISOString();
+  
+  guild.goals[goalIndex] = goal;
+  guild.updatedAt = new Date().toISOString();
+  
+  guilds[guildIndex] = guild;
+  saveGuilds(guilds);
+  
+  addActivity(guild.id, 'goal_updated', agentId || 'system', {
+    goalId: goal.id,
+    description: goal.description,
+    oldStatus,
+    newStatus: status
   });
+  
+  res.json(goal);
 });
 
-// Certify agent meets guild standards
-router.post('/api/guilds/:id/certify/:agent', (req, res) => {
-  const { agent } = req.params;
-  
+// Get all guilds for an agent
+router.get('/api/my/:agentId', (req, res) => {
   const guilds = loadGuilds();
-  const guild = guilds.find(g => g.id === req.params.id);
-  
-  if (!guild) {
-    return res.status(404).json({ error: 'Guild not found' });
-  }
-  
-  // Check if agent is a member
-  if (!guild.members.includes(agent)) {
-    return res.status(403).json({ error: 'Agent must be a guild member to be certified' });
-  }
-  
-  const certifications = loadCertifications();
-  
-  // Check if already certified
-  const existing = certifications.find(c => 
-    c.guildId === req.params.id && 
-    c.agent === agent && 
-    c.status === 'active'
+  const myGuilds = guilds.filter(g => 
+    g.members.some(m => m.agentId === req.params.agentId)
   );
   
-  if (existing) {
-    return res.status(409).json({ error: 'Agent already certified' });
+  res.json(myGuilds);
+});
+
+// Invite an agent to guild
+router.post('/api/guilds/:id/invite', (req, res) => {
+  const { invitedAgentId, invitedBy } = req.body;
+  
+  if (!invitedAgentId) {
+    return res.status(400).json({ error: 'invitedAgentId is required' });
   }
   
-  const certification = {
-    id: uuidv4(),
-    guildId: req.params.id,
-    guildName: guild.name,
-    agent,
-    status: 'active',
-    certifiedAt: new Date().toISOString()
-  };
+  const guilds = loadGuilds();
+  const guild = guilds.find(g => g.id === req.params.id);
   
-  certifications.push(certification);
-  saveCertifications(certifications);
-  res.status(201).json(certification);
+  if (!guild) {
+    return res.status(404).json({ error: 'Guild not found' });
+  }
+  
+  addActivity(guild.id, 'invited', invitedBy || 'system', {
+    invitedAgentId
+  });
+  
+  res.json({
+    success: true,
+    message: `Invitation sent to ${invitedAgentId}`,
+    guildId: guild.id,
+    guildName: guild.name
+  });
+});
+
+// Archive/delete guild
+router.delete('/api/guilds/:id', (req, res) => {
+  const guilds = loadGuilds();
+  const guildIndex = guilds.findIndex(g => g.id === req.params.id);
+  
+  if (guildIndex === -1) {
+    return res.status(404).json({ error: 'Guild not found' });
+  }
+  
+  const guild = guilds[guildIndex];
+  guild.status = 'archived';
+  guild.updatedAt = new Date().toISOString();
+  
+  guilds[guildIndex] = guild;
+  saveGuilds(guilds);
+  
+  addActivity(guild.id, 'archived', req.body.agentId || 'system');
+  
+  res.json({ success: true, guild });
+});
+
+// Discover guilds
+router.get('/api/discover', (req, res) => {
+  let guilds = loadGuilds();
+  
+  // Only show active and forming guilds
+  guilds = guilds.filter(g => ['active', 'forming'].includes(g.status));
+  
+  // Filter by interests/tags if provided
+  if (req.query.interests) {
+    const interests = req.query.interests.split(',').map(i => i.trim().toLowerCase());
+    guilds = guilds.filter(g => 
+      g.tags.some(t => interests.includes(t.toLowerCase()))
+    );
+  }
+  
+  // Filter by type if provided
+  if (req.query.type) {
+    guilds = guilds.filter(g => g.type === req.query.type);
+  }
+  
+  // Score and rank guilds (looking for members = higher score)
+  guilds = guilds.map(g => ({
+    ...g,
+    score: (g.status === 'forming' ? 10 : 0) + // Prefer forming guilds
+            (g.members.length < 5 ? 5 : 0) +    // Prefer small guilds
+            (g.goals.filter(goal => goal.status === 'pending').length * 2) // Active goals
+  })).sort((a, b) => b.score - a.score);
+  
+  // Remove score from response
+  guilds = guilds.map(({ score, ...g }) => g);
+  
+  res.json(guilds);
+});
+
+// Get guild activity feed
+router.get('/api/guilds/:id/activity', (req, res) => {
+  const activity = loadActivity();
+  const guildActivity = activity
+    .filter(a => a.guildId === req.params.id)
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    .slice(0, 50); // Last 50 events
+  
+  res.json(guildActivity);
+});
+
+// Post activity/message to guild
+router.post('/api/guilds/:id/activity', (req, res) => {
+  const { agentId, message } = req.body;
+  
+  if (!agentId || !message) {
+    return res.status(400).json({ error: 'agentId and message are required' });
+  }
+  
+  const guilds = loadGuilds();
+  const guild = guilds.find(g => g.id === req.params.id);
+  
+  if (!guild) {
+    return res.status(404).json({ error: 'Guild not found' });
+  }
+  
+  const event = addActivity(guild.id, 'message', agentId, { message });
+  
+  res.status(201).json(event);
 });
 
 module.exports = router;
