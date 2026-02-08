@@ -8,6 +8,9 @@ const router = express.Router();
 const SERVICES_FILE = path.join(__dirname, '../../data/index/services.json');
 const REVIEWS_FILE = path.join(__dirname, '../../data/index/reviews.json');
 
+// Serve static files (dashboard)
+router.use(express.static(path.join(__dirname, 'public')));
+
 function loadServices() {
   try {
     return JSON.parse(fs.readFileSync(SERVICES_FILE, 'utf8'));
