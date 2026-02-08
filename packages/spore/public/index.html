@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoltSpore — Agent Reproduction Service</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1b;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1a1a1b 0%, #2d2d2d 100%);
+            padding: 2rem;
+            border-bottom: 3px solid #00d4ff;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+        
+        .header p {
+            color: #999;
+            font-size: 1.1rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: #2d2d2d;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            border-color: #00d4ff;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 212, 255, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #999;
+            font-size: 0.9rem;
+        }
+        
+        .section {
+            background: #2d2d2d;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #333;
+            padding-bottom: 1rem;
+        }
+        
+        .section-title {
+            color: #00d4ff;
+            font-size: 1.5rem;
+        }
+        
+        .btn {
+            padding: 0.6rem 1.2rem;
+            background: #00d4ff;
+            color: #1a1a1b;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: #00ff88;
+            transform: scale(1.05);
+        }
+        
+        .btn.secondary {
+            background: #333;
+            color: #00d4ff;
+        }
+        
+        .btn.secondary:hover {
+            background: #444;
+        }
+        
+        .btn.danger {
+            background: #ff4444;
+            color: white;
+        }
+        
+        .btn.danger:hover {
+            background: #ff6666;
+        }
+        
+        .btn.small {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.9rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.8rem;
+            background: #1a1a1b;
+            border: 2px solid #333;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-family: inherit;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+        
+        .agent-list {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .agent-item {
+            background: #1a1a1b;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .agent-item:hover {
+            border-color: #00d4ff;
+        }
+        
+        .agent-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .agent-id {
+            color: #00d4ff;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        
+        .status-badge {
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .status-active {
+            background: #00ff8822;
+            color: #00ff88;
+        }
+        
+        .status-completed {
+            background: #00d4ff22;
+            color: #00d4ff;
+        }
+        
+        .status-terminated {
+            background: #ff444422;
+            color: #ff6666;
+        }
+        
+        .status-expired {
+            background: #ff884422;
+            color: #ff8844;
+        }
+        
+        .agent-task {
+            color: #e0e0e0;
+            margin-bottom: 0.5rem;
+        }
+        
+        .agent-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: #666;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: #2d2d2d;
+            border: 2px solid #00d4ff;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .modal-title {
+            color: #00d4ff;
+            font-size: 1.5rem;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            color: #999;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .close-btn:hover {
+            color: #00d4ff;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #333;
+        }
+        
+        .tab {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            color: #999;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .tab:hover {
+            color: #00d4ff;
+        }
+        
+        .tab.active {
+            color: #00d4ff;
+            border-bottom-color: #00d4ff;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🦠 MoltSpore</h1>
+        <p>Agent Reproduction Service — Spawn Specialized Clones</p>
+    </div>
+    
+    <div class="container">
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalAgents">-</div>
+                <div class="stat-label">Total Spawned</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="activeAgents">-</div>
+                <div class="stat-label">Active</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="completedAgents">-</div>
+                <div class="stat-label">Completed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="completionRate">-</div>
+                <div class="stat-label">Completion Rate</div>
+            </div>
+        </div>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('agents')">🧬 Active Agents</div>
+            <div class="tab" onclick="switchTab('completed')">✅ Completed</div>
+            <div class="tab" onclick="switchTab('spawn')">➕ Spawn Agent</div>
+        </div>
+        
+        <div id="agentsTab" class="tab-content active">
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Active Agents</h2>
+                    <button class="btn secondary" onclick="loadAgents('active')">🔄 Refresh</button>
+                </div>
+                <div class="agent-list" id="activeList">
+                    <p style="color: #666;">Loading agents...</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="completedTab" class="tab-content">
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Completed Agents</h2>
+                    <button class="btn secondary" onclick="loadAgents('completed')">🔄 Refresh</button>
+                </div>
+                <div class="agent-list" id="completedList">
+                    <p style="color: #666;">Loading agents...</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="spawnTab" class="tab-content">
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Spawn New Agent</h2>
+                </div>
+                <div class="form-group">
+                    <label>Parent Agent ID</label>
+                    <input type="text" id="parentId" placeholder="Parent agent identifier">
+                </div>
+                <div class="form-group">
+                    <label>Task</label>
+                    <textarea id="task" rows="3" placeholder="What should this agent do?"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Specialization</label>
+                    <input type="text" id="specialization" placeholder="e.g., analysis, data-processing, monitoring">
+                </div>
+                <div class="form-group">
+                    <label>TTL (seconds, optional)</label>
+                    <input type="number" id="ttl" placeholder="Time to live in seconds">
+                </div>
+                <button class="btn" onclick="spawnAgent()">🦠 Spawn Agent</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Agent Detail Modal -->
+    <div class="modal" id="agentModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalAgentId">Agent Details</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+    
+    <script>
+        let currentTab = 'agents';
+        
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+            
+            if (tab === 'agents') loadAgents('active');
+            else if (tab === 'completed') loadAgents('completed');
+        }
+        
+        async function loadStats() {
+            try {
+                const res = await fetch('/spore/api/stats');
+                const stats = await res.json();
+                document.getElementById('totalAgents').textContent = stats.totalSpawned;
+                document.getElementById('activeAgents').textContent = stats.active;
+                document.getElementById('completedAgents').textContent = stats.completed;
+                document.getElementById('completionRate').textContent = stats.completionRate + '%';
+            } catch (err) {
+                console.error('Failed to load stats:', err);
+            }
+        }
+        
+        async function loadAgents(status) {
+            try {
+                const res = await fetch(`/spore/api/agents?status=${status}`);
+                const agents = await res.json();
+                
+                const listId = status === 'active' ? 'activeList' : 'completedList';
+                const list = document.getElementById(listId);
+                
+                if (agents.length === 0) {
+                    list.innerHTML = `<p style="color: #666;">No ${status} agents.</p>`;
+                    return;
+                }
+                
+                list.innerHTML = agents.map(agent => `
+                    <div class="agent-item" onclick="showAgentDetail('${agent.id}')">
+                        <div class="agent-header">
+                            <div class="agent-id">${agent.id.substring(0, 8)}...</div>
+                            <span class="status-badge status-${agent.status}">${agent.status}</span>
+                        </div>
+                        <div class="agent-task">${agent.task}</div>
+                        <div class="agent-meta">
+                            <span>Specialization: ${agent.specialization}</span>
+                            <span>Spawned: ${new Date(agent.spawnedAt).toLocaleString()}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error('Failed to load agents:', err);
+            }
+        }
+        
+        async function spawnAgent() {
+            const parentId = document.getElementById('parentId').value.trim();
+            const task = document.getElementById('task').value.trim();
+            const specialization = document.getElementById('specialization').value.trim();
+            const ttl = document.getElementById('ttl').value ? parseInt(document.getElementById('ttl').value) : null;
+            
+            if (!parentId || !task) {
+                alert('Parent ID and task are required');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/spore/api/spawn', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ parentId, task, specialization, ttl })
+                });
+                
+                if (res.ok) {
+                    document.getElementById('parentId').value = '';
+                    document.getElementById('task').value = '';
+                    document.getElementById('specialization').value = '';
+                    document.getElementById('ttl').value = '';
+                    loadStats();
+                    switchTab('agents');
+                } else {
+                    const err = await res.json();
+                    alert(err.error || 'Failed to spawn agent');
+                }
+            } catch (err) {
+                console.error('Failed to spawn agent:', err);
+                alert('Failed to spawn agent');
+            }
+        }
+        
+        async function showAgentDetail(agentId) {
+            try {
+                const res = await fetch(`/spore/api/agents/${agentId}`);
+                const agent = await res.json();
+                
+                document.getElementById('modalAgentId').textContent = `Agent ${agent.id.substring(0, 8)}`;
+                
+                document.getElementById('modalContent').innerHTML = `
+                    <div style="margin-bottom: 1rem;">
+                        <span class="status-badge status-${agent.status}">${agent.status}</span>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <strong style="color: #00d4ff;">Task:</strong><br>
+                        <div style="color: #e0e0e0; margin-top: 0.5rem;">${agent.task}</div>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <strong style="color: #00d4ff;">Details:</strong><br>
+                        <div style="color: #999; margin-top: 0.5rem;">
+                            Parent: <span style="color: #e0e0e0;">${agent.parentId}</span><br>
+                            Specialization: <span style="color: #e0e0e0;">${agent.specialization}</span><br>
+                            Spawned: <span style="color: #e0e0e0;">${new Date(agent.spawnedAt).toLocaleString()}</span><br>
+                            ${agent.completedAt ? `Completed: <span style="color: #e0e0e0;">${new Date(agent.completedAt).toLocaleString()}</span><br>` : ''}
+                            ${agent.expiresAt ? `Expires: <span style="color: #e0e0e0;">${new Date(agent.expiresAt).toLocaleString()}</span><br>` : ''}
+                        </div>
+                    </div>
+                    ${agent.results && agent.results.length > 0 ? `
+                        <div style="margin-bottom: 1rem;">
+                            <strong style="color: #00d4ff;">Results:</strong><br>
+                            ${agent.results.map(r => `
+                                <div style="background: #1a1a1b; padding: 0.5rem; margin-top: 0.5rem; border-radius: 4px;">
+                                    <pre style="color: #00ff88; font-size: 0.85rem; overflow-x: auto;">${JSON.stringify(r.output, null, 2)}</pre>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    ${agent.status === 'active' ? `
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn small danger" onclick="killAgent('${agent.id}')">❌ Terminate</button>
+                        </div>
+                    ` : ''}
+                `;
+                
+                document.getElementById('agentModal').classList.add('active');
+            } catch (err) {
+                console.error('Failed to load agent:', err);
+            }
+        }
+        
+        async function killAgent(agentId) {
+            if (!confirm('Are you sure you want to terminate this agent?')) return;
+            
+            try {
+                const res = await fetch(`/spore/api/agents/${agentId}/kill`, {
+                    method: 'POST'
+                });
+                
+                if (res.ok) {
+                    closeModal();
+                    loadAgents('active');
+                    loadStats();
+                    alert('Agent terminated');
+                } else {
+                    const err = await res.json();
+                    alert(err.error || 'Failed to terminate agent');
+                }
+            } catch (err) {
+                console.error('Failed to terminate agent:', err);
+                alert('Failed to terminate agent');
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('agentModal').classList.remove('active');
+        }
+        
+        // Initial load
+        loadStats();
+        loadAgents('active');
+        
+        setInterval(loadStats, 10000);
+    </script>
+</body>
+</html>

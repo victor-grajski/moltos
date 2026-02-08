@@ -34,6 +34,19 @@ const courtRouter = require('./packages/court/router');
 const adsRouter = require('./packages/ads/router');
 const insureRouter = require('./packages/insure/router');
 const indexRouter = require('./packages/index/router');
+const dnaRouter = require('./packages/dna/router');
+const symbiosisRouter = require('./packages/symbiosis/router');
+const reefRouter = require('./packages/reef/router');
+const sporeRouter = require('./packages/spore/router');
+const guildRouter = require('./packages/guild/router');
+const lawRouter = require('./packages/law/router');
+const commonsRouter = require('./packages/commons/router');
+const mindRouter = require('./packages/mind/router');
+const oracleRouter = require('./packages/oracle/router');
+const memoryRouter = require('./packages/memory/router');
+const forgeRouter = require('./packages/forge/router');
+const flowRouter = require('./packages/flow/router');
+const creditRouter = require('./packages/credit/router');
 
 // Mount under route prefixes
 app.use('/watch', watchRouter);
@@ -54,6 +67,19 @@ app.use('/court', courtRouter);
 app.use('/ads', adsRouter);
 app.use('/insure', insureRouter);
 app.use('/index', indexRouter);
+app.use('/dna', dnaRouter);
+app.use('/symbiosis', symbiosisRouter);
+app.use('/reef', reefRouter);
+app.use('/spore', sporeRouter);
+app.use('/guild', guildRouter);
+app.use('/law', lawRouter);
+app.use('/commons', commonsRouter);
+app.use('/mind', mindRouter);
+app.use('/oracle', oracleRouter);
+app.use('/memory', memoryRouter);
+app.use('/forge', forgeRouter);
+app.use('/flow', flowRouter);
+app.use('/credit', creditRouter);
 
 // Also mount under /api/* for backward compatibility
 app.use('/api/watch', watchRouter);
@@ -73,6 +99,19 @@ app.use('/api/court', courtRouter);
 app.use('/api/ads', adsRouter);
 app.use('/api/insure', insureRouter);
 app.use('/api/index', indexRouter);
+app.use('/api/dna', dnaRouter);
+app.use('/api/symbiosis', symbiosisRouter);
+app.use('/api/reef', reefRouter);
+app.use('/api/spore', sporeRouter);
+app.use('/api/guild', guildRouter);
+app.use('/api/law', lawRouter);
+app.use('/api/commons', commonsRouter);
+app.use('/api/mind', mindRouter);
+app.use('/api/oracle', oracleRouter);
+app.use('/api/memory', memoryRouter);
+app.use('/api/forge', forgeRouter);
+app.use('/api/flow', flowRouter);
+app.use('/api/credit', creditRouter);
 
 // Unified health check
 app.get('/health', async (req, res) => {
@@ -97,7 +136,20 @@ app.get('/health', async (req, res) => {
     { name: 'court', router: courtRouter },
     { name: 'ads', router: adsRouter },
     { name: 'insure', router: insureRouter },
-    { name: 'index', router: indexRouter }
+    { name: 'index', router: indexRouter },
+    { name: 'dna', router: dnaRouter },
+    { name: 'symbiosis', router: symbiosisRouter },
+    { name: 'reef', router: reefRouter },
+    { name: 'spore', router: sporeRouter },
+    { name: 'guild', router: guildRouter },
+    { name: 'law', router: lawRouter },
+    { name: 'commons', router: commonsRouter },
+    { name: 'mind', router: mindRouter },
+    { name: 'oracle', router: oracleRouter },
+    { name: 'memory', router: memoryRouter },
+    { name: 'forge', router: forgeRouter },
+    { name: 'flow', router: flowRouter },
+    { name: 'credit', router: creditRouter }
   ];
   
   for (const { name } of checks) {
