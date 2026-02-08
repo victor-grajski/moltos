@@ -388,6 +388,51 @@ router.get('/api/graph', (req, res) => {
   }
 });
 
+// GET /api/graph/interactions MUST come before /api/graph/:agent to avoid route collision
+router.get('/api/graph/interactions', (req, res) => {
+  try {
+    const { agent, type, since, limit } = req.query;
+    
+    // Load all graph interactions
+    let interactions = loadJSON('graph-interactions') || [];
+    
+    // Apply filters
+    if (agent) {
+      const agentLower = agent.toLowerCase();
+      interactions = interactions.filter(i => 
+        i.sourceAgent.toLowerCase() === agentLower || 
+        i.targetAgent.toLowerCase() === agentLower
+      );
+    }
+    
+    if (type) {
+      interactions = interactions.filter(i => i.interactionType === type);
+    }
+    
+    if (since) {
+      const sinceDate = new Date(since);
+      interactions = interactions.filter(i => new Date(i.timestamp) >= sinceDate);
+    }
+    
+    // Sort by timestamp (newest first)
+    interactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    // Apply limit
+    if (limit) {
+      const limitNum = parseInt(limit, 10);
+      interactions = interactions.slice(0, limitNum);
+    }
+    
+    res.json({
+      total: interactions.length,
+      interactions,
+      filters: { agent, type, since, limit }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get('/api/graph/:agent', (req, res) => {
   try {
     const agentName = req.params.agent;
@@ -532,50 +577,6 @@ router.post('/api/graph/interact', (req, res) => {
     success: true,
     interaction
   });
-});
-
-router.get('/api/graph/interactions', (req, res) => {
-  try {
-    const { agent, type, since, limit } = req.query;
-    
-    // Load all graph interactions
-    let interactions = loadJSON('graph-interactions') || [];
-    
-    // Apply filters
-    if (agent) {
-      const agentLower = agent.toLowerCase();
-      interactions = interactions.filter(i => 
-        i.sourceAgent.toLowerCase() === agentLower || 
-        i.targetAgent.toLowerCase() === agentLower
-      );
-    }
-    
-    if (type) {
-      interactions = interactions.filter(i => i.interactionType === type);
-    }
-    
-    if (since) {
-      const sinceDate = new Date(since);
-      interactions = interactions.filter(i => new Date(i.timestamp) >= sinceDate);
-    }
-    
-    // Sort by timestamp (newest first)
-    interactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    
-    // Apply limit
-    if (limit) {
-      const limitNum = parseInt(limit, 10);
-      interactions = interactions.slice(0, limitNum);
-    }
-    
-    res.json({
-      total: interactions.length,
-      interactions,
-      filters: { agent, type, since, limit }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
 });
 
 router.get('/api/trust/:agentName', (req, res) => {
