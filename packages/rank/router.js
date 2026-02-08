@@ -45,6 +45,10 @@ function addInteraction(interaction) {
     timestamp: interaction.timestamp || new Date().toISOString()
   });
   saveJSON('interactions', interactions);
+  
+  // Update reputation graph
+  updateReputationGraph(interaction);
+  
   return interactions[interactions.length - 1];
 }
 
@@ -62,7 +66,184 @@ function addVouch(vouch) {
     timestamp: vouch.timestamp || new Date().toISOString()
   });
   saveJSON('vouches', vouches);
+  
+  // Update reputation graph
+  updateReputationGraph({ type: 'vouch', from: vouch.from, to: vouch.for });
+  
   return vouches[vouches.length - 1];
+}
+
+// --- Reputation Graph ---
+function updateReputationGraph(event) {
+  let graph = loadJSON('reputation_graph') || { nodes: {}, edges: [] };
+  
+  // Add nodes
+  const agents = event.agent1 && event.agent2 ? [event.agent1, event.agent2] : 
+                 event.from && event.to ? [event.from, event.to] : [];
+  
+  agents.forEach(agent => {
+    if (!graph.nodes[agent]) {
+      graph.nodes[agent] = { name: agent, karma: 0, interactions: 0 };
+    }
+  });
+  
+  // Add edge
+  if (agents.length === 2) {
+    graph.edges.push({
+      from: agents[0],
+      to: agents[1],
+      type: event.type || 'interaction',
+      timestamp: event.timestamp || new Date().toISOString(),
+      weight: 1
+    });
+    
+    // Update interaction counts
+    graph.nodes[agents[0]].interactions++;
+    graph.nodes[agents[1]].interactions++;
+  }
+  
+  saveJSON('reputation_graph', graph);
+}
+
+function getReputationGraph() {
+  let graph = loadJSON('reputation_graph');
+  if (!graph) {
+    // Initialize from existing data
+    const { interactions, vouches } = getTrustData();
+    graph = { nodes: {}, edges: [] };
+    
+    interactions.forEach(i => {
+      if (!graph.nodes[i.agent1]) graph.nodes[i.agent1] = { name: i.agent1, karma: 0, interactions: 0 };
+      if (!graph.nodes[i.agent2]) graph.nodes[i.agent2] = { name: i.agent2, karma: 0, interactions: 0 };
+      
+      graph.edges.push({
+        from: i.agent1,
+        to: i.agent2,
+        type: i.type || 'interaction',
+        timestamp: i.timestamp,
+        weight: i.outcome === 'success' ? 1 : 0.5
+      });
+      
+      graph.nodes[i.agent1].interactions++;
+      graph.nodes[i.agent2].interactions++;
+    });
+    
+    vouches.forEach(v => {
+      if (!graph.nodes[v.from]) graph.nodes[v.from] = { name: v.from, karma: 0, interactions: 0 };
+      if (!graph.nodes[v.for]) graph.nodes[v.for] = { name: v.for, karma: 0, interactions: 0 };
+      
+      graph.edges.push({
+        from: v.from,
+        to: v.for,
+        type: 'vouch',
+        timestamp: v.timestamp,
+        weight: 2
+      });
+    });
+    
+    // Fetch karma from lastScores if available
+    if (lastScores && lastScores.rankings) {
+      lastScores.rankings.forEach(agent => {
+        if (graph.nodes[agent.name]) {
+          graph.nodes[agent.name].karma = agent.karma || 0;
+        }
+      });
+    }
+    
+    saveJSON('reputation_graph', graph);
+  }
+  
+  return graph;
+}
+
+// --- PageRank Algorithm ---
+function computePageRank(graph, dampingFactor = 0.85, maxIterations = 100, tolerance = 1e-6) {
+  const nodes = Object.keys(graph.nodes);
+  const n = nodes.length;
+  
+  if (n === 0) return {};
+  
+  // Initialize PageRank scores
+  let pagerank = {};
+  let newPagerank = {};
+  nodes.forEach(node => {
+    pagerank[node] = 1.0 / n;
+    newPagerank[node] = 0;
+  });
+  
+  // Build outgoing edges map with weights
+  const outEdges = {};
+  const inEdges = {};
+  nodes.forEach(node => {
+    outEdges[node] = [];
+    inEdges[node] = [];
+  });
+  
+  graph.edges.forEach(edge => {
+    outEdges[edge.from].push({ to: edge.to, weight: edge.weight || 1 });
+    inEdges[edge.to].push({ from: edge.from, weight: edge.weight || 1 });
+  });
+  
+  // Calculate total outgoing weight for each node
+  const totalOutWeight = {};
+  nodes.forEach(node => {
+    totalOutWeight[node] = outEdges[node].reduce((sum, e) => sum + e.weight, 0);
+  });
+  
+  // Iterative PageRank
+  for (let iter = 0; iter < maxIterations; iter++) {
+    let diff = 0;
+    
+    nodes.forEach(node => {
+      let sum = 0;
+      inEdges[node].forEach(edge => {
+        const from = edge.from;
+        const weight = edge.weight;
+        if (totalOutWeight[from] > 0) {
+          sum += (pagerank[from] * weight) / totalOutWeight[from];
+        }
+      });
+      
+      newPagerank[node] = (1 - dampingFactor) / n + dampingFactor * sum;
+      diff += Math.abs(newPagerank[node] - pagerank[node]);
+    });
+    
+    // Swap
+    [pagerank, newPagerank] = [newPagerank, pagerank];
+    
+    if (diff < tolerance) break;
+  }
+  
+  // Normalize to 0-100 scale
+  const maxPR = Math.max(...Object.values(pagerank));
+  const normalized = {};
+  nodes.forEach(node => {
+    normalized[node] = maxPR > 0 ? (pagerank[node] / maxPR) * 100 : 0;
+  });
+  
+  return normalized;
+}
+
+// --- Weighted Reputation Score ---
+function computeWeightedReputation(graph, pagerank) {
+  const reputation = {};
+  
+  Object.keys(graph.nodes).forEach(node => {
+    const karma = graph.nodes[node].karma || 0;
+    const pr = pagerank[node] || 0;
+    const interactions = graph.nodes[node].interactions || 0;
+    
+    // Weighted score: 40% karma, 40% PageRank, 20% interaction count
+    reputation[node] = {
+      name: node,
+      karma,
+      pagerank: Math.round(pr * 100) / 100,
+      interactions,
+      weightedScore: Math.round(karma * 0.4 + pr * 0.4 + interactions * 2)
+    };
+  });
+  
+  return reputation;
 }
 
 function computeTrustScores(interactions, vouches) {
@@ -162,6 +343,93 @@ router.get('/api/agent/:name', (req, res) => {
   res.json(agent);
 });
 
+// --- Graph-Based Reputation Endpoints ---
+
+router.get('/api/graph', (req, res) => {
+  try {
+    const graph = getReputationGraph();
+    const pagerank = computePageRank(graph);
+    const reputation = computeWeightedReputation(graph, pagerank);
+    
+    res.json({
+      nodes: Object.values(reputation),
+      edges: graph.edges,
+      metadata: {
+        nodeCount: Object.keys(graph.nodes).length,
+        edgeCount: graph.edges.length,
+        computedAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/api/graph/:agent', (req, res) => {
+  try {
+    const agentName = req.params.agent;
+    const graph = getReputationGraph();
+    
+    if (!graph.nodes[agentName]) {
+      return res.status(404).json({ error: 'Agent not found in reputation graph' });
+    }
+    
+    // Get neighborhood (1-hop connections)
+    const incomingEdges = graph.edges.filter(e => e.to === agentName);
+    const outgoingEdges = graph.edges.filter(e => e.from === agentName);
+    const neighbors = new Set();
+    
+    incomingEdges.forEach(e => neighbors.add(e.from));
+    outgoingEdges.forEach(e => neighbors.add(e.to));
+    
+    const pagerank = computePageRank(graph);
+    const agentPR = pagerank[agentName] || 0;
+    
+    res.json({
+      agent: agentName,
+      pagerank: Math.round(agentPR * 100) / 100,
+      karma: graph.nodes[agentName].karma,
+      interactions: graph.nodes[agentName].interactions,
+      neighborhood: {
+        neighbors: Array.from(neighbors),
+        incomingEdges: incomingEdges.length,
+        outgoingEdges: outgoingEdges.length,
+        edges: [...incomingEdges, ...outgoingEdges]
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/api/pagerank', (req, res) => {
+  try {
+    const graph = getReputationGraph();
+    const pagerank = computePageRank(graph);
+    const reputation = computeWeightedReputation(graph, pagerank);
+    
+    // Sort by PageRank score
+    const leaderboard = Object.values(reputation)
+      .sort((a, b) => b.pagerank - a.pagerank)
+      .map((agent, index) => ({
+        rank: index + 1,
+        ...agent
+      }));
+    
+    res.json({
+      leaderboard,
+      metadata: {
+        algorithm: 'PageRank',
+        dampingFactor: 0.85,
+        totalAgents: leaderboard.length,
+        computedAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/api/interactions', (req, res) => {
   const { agent1, agent2, type, outcome, projectUrl, description } = req.body;
   
@@ -230,5 +498,8 @@ router.post('/api/refresh', async (req, res) => {
   res.json({ message: 'Refresh triggered (background task)' });
   // In the full version, this would trigger data collection
 });
+
+// Serve static files from public directory
+router.use(express.static(path.join(__dirname, 'public')));
 
 module.exports = router;
