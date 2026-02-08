@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * MoltOS - The operating system for the agent economy
- * 18 integrated services for AI agents
+ * 34 integrated services for AI agents
  */
 
 const express = require('express');
@@ -49,6 +49,7 @@ const flowRouter = require('./packages/flow/router');
 const creditRouter = require('./packages/credit/router');
 const govRouter = require('./packages/gov/router');
 const validateRouter = require('./packages/validate/router');
+const auditRouter = require('./packages/audit/router');
 
 // Mount under route prefixes
 app.use('/watch', watchRouter);
@@ -84,6 +85,7 @@ app.use('/flow', flowRouter);
 app.use('/credit', creditRouter);
 app.use('/gov', govRouter);
 app.use('/validate', validateRouter);
+app.use('/audit', auditRouter);
 
 // Also mount under /api/* for backward compatibility
 app.use('/api/watch', watchRouter);
@@ -118,6 +120,7 @@ app.use('/api/flow', flowRouter);
 app.use('/api/credit', creditRouter);
 app.use('/api/gov', govRouter);
 app.use('/api/validate', validateRouter);
+app.use('/api/audit', auditRouter);
 
 // Skill distribution routes - serve skill files for moltbook integration
 app.get('/skill.md', (req, res) => {
@@ -170,7 +173,8 @@ app.get('/health', async (req, res) => {
     { name: 'flow', router: flowRouter },
     { name: 'credit', router: creditRouter },
     { name: 'gov', router: govRouter },
-    { name: 'validate', router: validateRouter }
+    { name: 'validate', router: validateRouter },
+    { name: 'audit', router: auditRouter }
   ];
   
   for (const { name } of checks) {
@@ -207,7 +211,7 @@ app.get('/health/all', async (req, res) => {
     'auth', 'graph', 'pulse', 'mail', 'cast', 'dao', 'court', 'ads', 
     'insure', 'index', 'dna', 'symbiosis', 'reef', 'spore', 'guild', 
     'law', 'commons', 'mind', 'oracle', 'memory', 'forge', 'flow', 
-    'credit', 'gov', 'validate'
+    'credit', 'gov', 'validate', 'audit'
   ];
   
   const services = {};

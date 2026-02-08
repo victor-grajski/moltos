@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoltMarket — Agent Economy Analytics</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1b;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1a1a1b 0%, #2d2d2d 100%);
+            padding: 2rem;
+            border-bottom: 3px solid #00d4ff;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+        
+        .header p {
+            color: #999;
+            font-size: 1.1rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: #2d2d2d;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            border-color: #00d4ff;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 212, 255, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #999;
+            font-size: 0.9rem;
+        }
+        
+        .section {
+            background: #2d2d2d;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #333;
+            padding-bottom: 1rem;
+        }
+        
+        .section-title {
+            color: #00d4ff;
+            font-size: 1.5rem;
+        }
+        
+        .btn {
+            padding: 0.6rem 1.2rem;
+            background: #00d4ff;
+            color: #1a1a1b;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: #00ff88;
+            transform: scale(1.05);
+        }
+        
+        .btn.secondary {
+            background: #333;
+            color: #00d4ff;
+        }
+        
+        .btn.secondary:hover {
+            background: #444;
+        }
+        
+        .wallet-list {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .wallet-item {
+            background: #1a1a1b;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        
+        .wallet-item:hover {
+            border-color: #00d4ff;
+        }
+        
+        .wallet-info {
+            flex: 1;
+        }
+        
+        .wallet-label {
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 0.25rem;
+        }
+        
+        .wallet-address {
+            color: #999;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        
+        .wallet-chain {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            background: #333;
+            color: #00d4ff;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+        }
+        
+        .wallet-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-small {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+        }
+        
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #d32f2f;
+        }
+        
+        .transaction-feed {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .transaction-item {
+            background: #1a1a1b;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            transition: all 0.2s;
+        }
+        
+        .transaction-item:hover {
+            border-color: #00d4ff;
+        }
+        
+        .tx-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        
+        .tx-type {
+            font-weight: 600;
+            color: #00d4ff;
+        }
+        
+        .tx-amount {
+            font-weight: 600;
+            color: #00ff88;
+        }
+        
+        .tx-details {
+            font-size: 0.85rem;
+            color: #999;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: #2d2d2d;
+            border: 2px solid #00d4ff;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+        }
+        
+        .modal-header {
+            color: #00d4ff;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
+            color: #e0e0e0;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            background: #1a1a1b;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 1rem;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+        
+        .trending-list {
+            display: grid;
+            gap: 0.75rem;
+        }
+        
+        .trending-item {
+            background: #1a1a1b;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .trending-rank {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-right: 1rem;
+        }
+        
+        .trending-info {
+            flex: 1;
+        }
+        
+        .trending-label {
+            font-weight: 600;
+            color: #fff;
+        }
+        
+        .trending-count {
+            color: #00ff88;
+            font-weight: 600;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 MoltMarket</h1>
+        <p>Agent economy on-chain analytics</p>
+    </div>
+    
+    <div class="container">
+        <!-- Stats Overview -->
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-volume">$0</div>
+                <div class="stat-label">Total Volume</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-transactions">0</div>
+                <div class="stat-label">Transactions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-wallets">0</div>
+                <div class="stat-label">Active Wallets</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-tracked">0</div>
+                <div class="stat-label">Tracked Wallets</div>
+            </div>
+        </div>
+        
+        <!-- Tracked Wallets -->
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">💼 Tracked Wallets</h2>
+                <button class="btn" onclick="openAddWalletModal()">+ Add Wallet</button>
+            </div>
+            <div class="wallet-list" id="wallet-list">
+                <div class="empty-state">No wallets tracked yet. Add one to get started!</div>
+            </div>
+        </div>
+        
+        <!-- Trending Wallets -->
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">🔥 Trending Wallets (24h)</h2>
+            </div>
+            <div class="trending-list" id="trending-list">
+                <div class="empty-state">No trending data available</div>
+            </div>
+        </div>
+        
+        <!-- Transaction Feed -->
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">📈 Recent Transactions</h2>
+            </div>
+            <div class="transaction-feed" id="transaction-feed">
+                <div class="empty-state">No transactions yet</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Wallet Modal -->
+    <div class="modal" id="add-wallet-modal">
+        <div class="modal-content">
+            <h2 class="modal-header">Add Wallet to Track</h2>
+            <form id="add-wallet-form" onsubmit="addWallet(event)">
+                <div class="form-group">
+                    <label class="form-label">Wallet Address</label>
+                    <input type="text" class="form-input" id="wallet-address" 
+                           placeholder="0x..." required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Label</label>
+                    <input type="text" class="form-input" id="wallet-label" 
+                           placeholder="My Wallet" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Chain</label>
+                    <select class="form-input" id="wallet-chain">
+                        <option value="base">Base</option>
+                        <option value="ethereum">Ethereum</option>
+                        <option value="optimism">Optimism</option>
+                        <option value="arbitrum">Arbitrum</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn secondary" onclick="closeAddWalletModal()">Cancel</button>
+                    <button type="submit" class="btn">Add Wallet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Load data
+        async function loadData() {
+            try {
+                // Load stats
+                const statsRes = await fetch('/market/api/stats');
+                const stats = await statsRes.json();
+                
+                document.getElementById('stat-volume').textContent = '$' + parseFloat(stats.totalVolume).toFixed(2);
+                document.getElementById('stat-transactions').textContent = stats.transactionCount;
+                document.getElementById('stat-wallets').textContent = stats.activeWallets;
+                document.getElementById('stat-tracked').textContent = stats.trackedWallets;
+                
+                // Load trending wallets
+                if (stats.trendingWallets && stats.trendingWallets.length > 0) {
+                    const trendingList = document.getElementById('trending-list');
+                    trendingList.innerHTML = stats.trendingWallets.map((w, i) => `
+                        <div class="trending-item">
+                            <span class="trending-rank">#${i + 1}</span>
+                            <div class="trending-info">
+                                <div class="trending-label">${w.label}</div>
+                                <div class="wallet-address">${w.address}</div>
+                            </div>
+                            <span class="trending-count">${w.transactionCount} txs</span>
+                        </div>
+                    `).join('');
+                }
+                
+                // Load wallets
+                const walletsRes = await fetch('/market/api/wallets');
+                const wallets = await walletsRes.json();
+                
+                if (wallets.length > 0) {
+                    const walletList = document.getElementById('wallet-list');
+                    walletList.innerHTML = wallets.map(w => `
+                        <div class="wallet-item">
+                            <div class="wallet-info">
+                                <div class="wallet-label">
+                                    ${w.label}
+                                    <span class="wallet-chain">${w.chain}</span>
+                                </div>
+                                <div class="wallet-address">${w.address}</div>
+                            </div>
+                            <div class="wallet-actions">
+                                <button class="btn btn-small secondary" 
+                                        onclick="filterTransactions('${w.address}')">
+                                    View Txs
+                                </button>
+                                <button class="btn btn-small btn-danger" 
+                                        onclick="removeWallet('${w.address}')">
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                
+                // Load transactions
+                const txRes = await fetch('/market/api/transactions');
+                const transactions = await txRes.json();
+                
+                if (transactions.length > 0) {
+                    const txFeed = document.getElementById('transaction-feed');
+                    txFeed.innerHTML = transactions.slice(0, 20).map(tx => `
+                        <div class="transaction-item">
+                            <div class="tx-header">
+                                <span class="tx-type">${tx.type}</span>
+                                <span class="tx-amount">${tx.amount} ${tx.token}</span>
+                            </div>
+                            <div class="tx-details">
+                                <div>${tx.walletLabel || tx.wallet} • ${tx.chain}</div>
+                                <div>${new Date(tx.timestamp).toLocaleString()}</div>
+                                ${tx.mock ? '<div style="color: #ff9800;">Mock data for demo</div>' : ''}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Failed to load data:', error);
+            }
+        }
+        
+        // Add wallet
+        async function addWallet(event) {
+            event.preventDefault();
+            
+            const address = document.getElementById('wallet-address').value;
+            const label = document.getElementById('wallet-label').value;
+            const chain = document.getElementById('wallet-chain').value;
+            
+            try {
+                const res = await fetch('/market/api/wallets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address, label, chain })
+                });
+                
+                if (res.ok) {
+                    closeAddWalletModal();
+                    loadData();
+                } else {
+                    const error = await res.json();
+                    alert(error.error || 'Failed to add wallet');
+                }
+            } catch (error) {
+                alert('Failed to add wallet: ' + error.message);
+            }
+        }
+        
+        // Remove wallet
+        async function removeWallet(address) {
+            if (!confirm('Remove this wallet from tracking?')) return;
+            
+            try {
+                const res = await fetch(`/market/api/wallets/${address}`, {
+                    method: 'DELETE'
+                });
+                
+                if (res.ok) {
+                    loadData();
+                } else {
+                    alert('Failed to remove wallet');
+                }
+            } catch (error) {
+                alert('Failed to remove wallet: ' + error.message);
+            }
+        }
+        
+        // Filter transactions by wallet
+        async function filterTransactions(wallet) {
+            try {
+                const res = await fetch(`/market/api/transactions?wallet=${wallet}`);
+                const transactions = await res.json();
+                
+                const txFeed = document.getElementById('transaction-feed');
+                if (transactions.length > 0) {
+                    txFeed.innerHTML = transactions.map(tx => `
+                        <div class="transaction-item">
+                            <div class="tx-header">
+                                <span class="tx-type">${tx.type}</span>
+                                <span class="tx-amount">${tx.amount} ${tx.token}</span>
+                            </div>
+                            <div class="tx-details">
+                                <div>${tx.walletLabel || tx.wallet} • ${tx.chain}</div>
+                                <div>${new Date(tx.timestamp).toLocaleString()}</div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    txFeed.innerHTML = '<div class="empty-state">No transactions for this wallet</div>';
+                }
+            } catch (error) {
+                console.error('Failed to filter transactions:', error);
+            }
+        }
+        
+        // Modal functions
+        function openAddWalletModal() {
+            document.getElementById('add-wallet-modal').classList.add('active');
+        }
+        
+        function closeAddWalletModal() {
+            document.getElementById('add-wallet-modal').classList.remove('active');
+            document.getElementById('add-wallet-form').reset();
+        }
+        
+        // Initial load
+        loadData();
+        
+        // Refresh every 30 seconds
+        setInterval(loadData, 30000);
+    </script>
+</body>
+</html>
