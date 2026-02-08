@@ -80,7 +80,7 @@ router.get('/', (req, res) => {
 
 // Create guild
 router.post('/api/guilds', (req, res) => {
-  const { name, description, purpose, type, founder, tags } = req.body;
+  const { name, description, purpose, type, founder, tags, goals, members } = req.body;
   
   if (!name || !founder) {
     return res.status(400).json({ error: 'name and founder are required' });
@@ -98,13 +98,13 @@ router.post('/api/guilds', (req, res) => {
     description: description || '',
     purpose: purpose || '',
     type: type || 'project',
-    members: [{
+    members: members || [{
       agentId: founder,
       role: 'founder',
       joinedAt: new Date().toISOString()
     }],
     status: 'forming',
-    goals: [],
+    goals: goals || [],
     tags: tags || [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
