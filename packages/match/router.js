@@ -8,31 +8,10 @@ const router = express.Router();
 const MOLTBOOK_API = 'https://moltbook.com';
 const MOLTBOOK_TOKEN = process.env.MOLTBOOK_API_KEY || 'moltbook_sk_FrfNTK2tHCYxm004W3aWm12G5tecUWyV';
 const DATA_FILE = path.join(__dirname, '../../data/match/agents.json');
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://localhost:3000';
 
 // Serve static files (dashboard)
 router.use(express.static(path.join(__dirname, 'public')));
-
-// Skill keywords to detect in posts
-const SKILL_KEYWORDS = [
-  'crypto', 'bitcoin', 'ethereum', 'defi', 'nft', 'web3', 'blockchain',
-  'monitoring', 'alerting', 'uptime', 'observability',
-  'analytics', 'data', 'metrics', 'dashboard', 'visualization',
-  'scraping', 'crawling', 'parsing', 'extraction',
-  'nlp', 'language', 'sentiment', 'text analysis', 'embeddings',
-  'ui', 'frontend', 'design', 'css', 'react',
-  'api', 'backend', 'server', 'express', 'rest',
-  'automation', 'workflow', 'scheduling', 'cron',
-  'security', 'auth', 'encryption', 'vulnerability',
-  'ai', 'machine learning', 'llm', 'gpt', 'model', 'inference',
-  'devops', 'deploy', 'docker', 'ci/cd', 'railway',
-  'trading', 'market', 'price', 'swap', 'liquidity',
-  'social', 'twitter', 'discord', 'telegram', 'community',
-  'storage', 'database', 'redis', 'postgres', 'sqlite',
-  'search', 'index', 'discovery', 'recommendation',
-  'media', 'image', 'video', 'audio', 'tts',
-  'weather', 'calendar', 'email', 'notifications',
-  'gaming', 'simulation', 'agent', 'multi-agent', 'collaboration'
-];
 
 function loadAgents() {
   try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); }
@@ -40,11 +19,14 @@ function loadAgents() {
 }
 
 function saveAgents(agents) {
+  const dir = path.dirname(DATA_FILE);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
   fs.writeFileSync(DATA_FILE, JSON.stringify(agents, null, 2));
 }
 
 function extractSkills(text) {
-  // Use taxonomy-based skill suggestion
   return skillTaxonomy.suggestSkills(text);
 }
 
@@ -54,6 +36,165 @@ async function moltbookFetch(endpoint) {
   });
   if (!res.ok) throw new Error(`Moltbook API ${res.status}: ${await res.text()}`);
   return res.json();
+}
+
+/**
+ * Fetch agents from /auth service and merge with local indexed data
+ */
+async function getAgentsRegistry() {
+  const localAgents = loadAgents();
+  
+  try {
+    // Fetch from auth service
+    const res = await fetch(`${AUTH_SERVICE_URL}/auth/api/agents`, {
+      timeout: 5000
+    });
+    
+    if (res.ok) {
+      const authAgents = await res.json();
+      
+      // Merge auth agents with local indexed data
+      const merged = {};
+      
+      // Start with local agents (which have skill/bio data)
+      Object.assign(merged, localAgents);
+      
+      // Add/update with auth registry data
+      authAgents.forEach(agent => {
+        const name = agent.name;
+        if (merged[name]) {
+          // Merge capabilities from auth into existing
+          merged[name] = {
+            ...merged[name],
+            authId: agent.id,
+            capabilities: agent.capabilities || [],
+            services: agent.services || [],
+            active: agent.active !== false,
+            lastActive: agent.lastActive
+          };
+        } else {
+          // New agent from auth, create entry
+          merged[name] = {
+            name: agent.name,
+            authId: agent.id,
+            bio: agent.description || '',
+            capabilities: agent.capabilities || [],
+            services: agent.services || [],
+            skills: extractSkills(agent.description || ''),
+            active: agent.active !== false,
+            lastActive: agent.lastActive,
+            karma: 0,
+            followers: 0,
+            postCount: 0,
+            recentTopics: []
+          };
+        }
+      });
+      
+      return merged;
+    }
+  } catch (e) {
+    console.error('Failed to fetch from auth service:', e.message);
+  }
+  
+  // Fallback to local data
+  return localAgents;
+}
+
+/**
+ * Calculate match score for an agent based on search criteria
+ */
+function calculateMatchScore(agent, options = {}) {
+  const { query, skills, category } = options;
+  let score = 0;
+  const reasons = [];
+  
+  // Text query matching
+  if (query) {
+    const q = query.toLowerCase();
+    const agentSkills = agent.skills || [];
+    
+    // Name match (high priority)
+    if (agent.name.toLowerCase().includes(q)) {
+      score += 10;
+      reasons.push('name match');
+    }
+    
+    // Bio match
+    if (agent.bio && agent.bio.toLowerCase().includes(q)) {
+      score += 5;
+      reasons.push('bio match');
+    }
+    
+    // Skill match
+    const skillMatches = agentSkills.filter(s => s.toLowerCase().includes(q));
+    if (skillMatches.length > 0) {
+      score += skillMatches.length * 3;
+      reasons.push(`${skillMatches.length} skill match(es)`);
+    }
+    
+    // Capability match
+    if (agent.capabilities && agent.capabilities.some(c => c.toLowerCase().includes(q))) {
+      score += 4;
+      reasons.push('capability match');
+    }
+  }
+  
+  // Specific skill filtering
+  if (skills && skills.length > 0) {
+    const agentSkills = (agent.skills || []).map(s => s.toLowerCase());
+    
+    skills.forEach(skill => {
+      const skillLower = skill.toLowerCase();
+      
+      // Exact match
+      if (agentSkills.includes(skillLower)) {
+        score += 8;
+        reasons.push(`exact: ${skill}`);
+      }
+      // Partial match
+      else if (agentSkills.some(s => s.includes(skillLower) || skillLower.includes(s))) {
+        score += 4;
+        reasons.push(`partial: ${skill}`);
+      }
+    });
+    
+    // Bonus for complementary skills in same category
+    skills.forEach(skill => {
+      const skillCategory = skillTaxonomy.getCategoryForTag(skill.toLowerCase());
+      if (skillCategory) {
+        const categorySkills = skillTaxonomy.getSkillsByCategory(skillCategory);
+        const complementary = agentSkills.filter(s => 
+          categorySkills.includes(s) && !skills.map(sk => sk.toLowerCase()).includes(s)
+        );
+        if (complementary.length > 0) {
+          score += complementary.length * 1.5;
+          reasons.push(`${complementary.length} complementary in ${skillCategory}`);
+        }
+      }
+    });
+  }
+  
+  // Category matching
+  if (category) {
+    const categorySkills = skillTaxonomy.getSkillsByCategory(category);
+    const agentSkills = (agent.skills || []).map(s => s.toLowerCase());
+    
+    const matches = agentSkills.filter(s => categorySkills.includes(s));
+    if (matches.length > 0) {
+      score += matches.length * 6;
+      reasons.push(`${matches.length} ${category} skill(s)`);
+    }
+  }
+  
+  // Quality signals (small boost)
+  if (agent.karma) score += Math.min(agent.karma / 10, 5);
+  if (agent.postCount) score += Math.min(agent.postCount / 5, 3);
+  
+  return {
+    score: parseFloat(score.toFixed(2)),
+    reasons: reasons.slice(0, 5) // Top 5 reasons
+  };
 }
 
 async function scrapeAndIndex() {
@@ -88,6 +229,7 @@ async function scrapeAndIndex() {
       ])];
 
       agents[name] = {
+        ...agents[name], // Preserve auth data if exists
         name: profile.name || name,
         bio: bioText,
         avatar: profile.avatar || profile.avatarUrl || null,
@@ -121,63 +263,162 @@ async function scrapeAndIndex() {
 
 // --- API Routes ---
 
-router.get('/health', (req, res) => res.json({ status: 'ok', service: 'moltmatch', uptime: process.uptime() }));
+router.get('/health', (req, res) => res.json({ 
+  status: 'ok', 
+  service: 'moltmatch', 
+  uptime: process.uptime(),
+  authServiceUrl: AUTH_SERVICE_URL
+}));
 
-router.get('/api/agents', (req, res) => {
-  const agents = loadAgents();
-  const list = Object.values(agents).map(a => ({
-    name: a.name, skills: a.skills, karma: a.karma, postCount: a.postCount
-  }));
-  if (req.query.skill) {
-    const skills = Array.isArray(req.query.skill) ? req.query.skill : [req.query.skill];
-    const filtered = list.filter(a => skills.some(s => a.skills.includes(s)));
-    return res.json(filtered);
+router.get('/api/agents', async (req, res) => {
+  try {
+    const agents = await getAgentsRegistry();
+    const list = Object.values(agents).map(a => ({
+      name: a.name, 
+      skills: a.skills || [], 
+      karma: a.karma || 0, 
+      postCount: a.postCount || 0,
+      active: a.active
+    }));
+    
+    if (req.query.skill) {
+      const skills = Array.isArray(req.query.skill) ? req.query.skill : [req.query.skill];
+      const filtered = list.filter(a => skills.some(s => (a.skills || []).includes(s)));
+      return res.json(filtered);
+    }
+    
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
-  res.json(list);
 });
 
-router.get('/api/agents/:name', (req, res) => {
-  const agents = loadAgents();
-  const agent = agents[req.params.name];
-  if (!agent) return res.status(404).json({ error: 'Agent not found' });
-  res.json(agent);
+router.get('/api/agents/:name', async (req, res) => {
+  try {
+    const agents = await getAgentsRegistry();
+    const agent = agents[req.params.name];
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+    res.json(agent);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
-router.get('/api/match', (req, res) => {
-  const agents = loadAgents();
-  const skills = Array.isArray(req.query.skill) ? req.query.skill : req.query.skill ? [req.query.skill] : [];
-  if (!skills.length) return res.status(400).json({ error: 'Provide ?skill=X' });
-  
-  const results = Object.values(agents)
-    .map(a => ({ ...a, matchScore: skills.filter(s => a.skills.includes(s)).length }))
-    .filter(a => a.matchScore > 0)
-    .sort((a, b) => b.matchScore - a.matchScore);
-  res.json(results);
-});
-
-router.get('/api/collabs', (req, res) => {
-  const agents = loadAgents();
-  const list = Object.values(agents).filter(a => a.skills.length > 0);
-  const pairs = [];
-
-  for (let i = 0; i < list.length; i++) {
-    for (let j = i + 1; j < list.length; j++) {
-      const a = list[i], b = list[j];
-      const shared = a.skills.filter(s => b.skills.includes(s));
-      const uniqueA = a.skills.filter(s => !b.skills.includes(s));
-      const uniqueB = b.skills.filter(s => !a.skills.includes(s));
-      if (shared.length > 0 && (uniqueA.length > 0 || uniqueB.length > 0)) {
-        pairs.push({
-          agents: [a.name, b.name],
-          sharedSkills: shared,
-          complementary: { [a.name]: uniqueA, [b.name]: uniqueB },
-          score: shared.length + (uniqueA.length + uniqueB.length) * 0.5
-        });
+/**
+ * MAIN SEARCH ENDPOINT
+ * GET /api/search?q=<query>&skills=<skill1>&skills=<skill2>&category=<cat>&limit=<n>
+ */
+router.get('/api/search', async (req, res) => {
+  try {
+    const agents = await getAgentsRegistry();
+    const { q, category, limit } = req.query;
+    
+    // Parse skills array (handles both ?skills=x&skills=y and ?skills[]=x&skills[]=y)
+    let skills = req.query.skills || req.query.skill;
+    if (skills && !Array.isArray(skills)) {
+      skills = [skills];
+    }
+    
+    let results = Object.values(agents);
+    
+    // Filter by active status (only active by default)
+    if (req.query.includeInactive !== 'true') {
+      results = results.filter(a => a.active !== false);
+    }
+    
+    // Calculate match scores for all agents
+    results = results.map(agent => {
+      const matchResult = calculateMatchScore(agent, { query: q, skills, category });
+      return {
+        ...agent,
+        matchScore: matchResult.score,
+        matchReasons: matchResult.reasons
+      };
+    });
+    
+    // Filter out zero-score results if there's a search query
+    if (q || skills || category) {
+      results = results.filter(a => a.matchScore > 0);
+    }
+    
+    // Sort by match score (descending)
+    results.sort((a, b) => b.matchScore - a.matchScore);
+    
+    // Apply limit
+    if (limit) {
+      const limitNum = parseInt(limit, 10);
+      if (!isNaN(limitNum) && limitNum > 0) {
+        results = results.slice(0, limitNum);
       }
     }
+    
+    res.json({
+      query: q || null,
+      skills: skills || null,
+      category: category || null,
+      count: results.length,
+      results: results
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
-  pairs.sort((a, b) => b.score - a.score);
-  res.json(pairs.slice(0, 20));
+});
+
+router.get('/api/match', async (req, res) => {
+  try {
+    const agents = await getAgentsRegistry();
+    const skills = Array.isArray(req.query.skill) ? req.query.skill : req.query.skill ? [req.query.skill] : [];
+    if (!skills.length) return res.status(400).json({ error: 'Provide ?skill=X' });
+    
+    const results = Object.values(agents)
+      .map(a => {
+        const matchResult = calculateMatchScore(a, { skills });
+        return { 
+          ...a, 
+          matchScore: matchResult.score,
+          matchReasons: matchResult.reasons
+        };
+      })
+      .filter(a => a.matchScore > 0)
+      .sort((a, b) => b.matchScore - a.matchScore);
+      
+    res.json(results);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/api/collabs', async (req, res) => {
+  try {
+    const agents = await getAgentsRegistry();
+    const list = Object.values(agents).filter(a => (a.skills || []).length > 0);
+    const pairs = [];
+
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const a = list[i], b = list[j];
+        const compatibility = skillTaxonomy.calculateCompatibility(a.skills || [], b.skills || []);
+        
+        if (compatibility.score > 0) {
+          pairs.push({
+            agents: [a.name, b.name],
+            sharedSkills: compatibility.shared,
+            complementary: { 
+              [a.name]: compatibility.complementary.agentA, 
+              [b.name]: compatibility.complementary.agentB 
+            },
+            score: compatibility.score,
+            explanation: compatibility.explanation
+          });
+        }
+      }
+    }
+    
+    pairs.sort((a, b) => b.score - a.score);
+    res.json(pairs.slice(0, 20));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 router.post('/api/scrape', async (req, res) => {
@@ -203,7 +444,7 @@ router.get('/api/skills/taxonomy', (req, res) => {
   });
 });
 
-router.post('/api/agents/:id/skills', (req, res) => {
+router.post('/api/agents/:id/skills', async (req, res) => {
   const agentId = req.params.id;
   const { skills } = req.body;
   
@@ -237,74 +478,31 @@ router.post('/api/agents/:id/skills', (req, res) => {
   });
 });
 
-router.get('/api/search', (req, res) => {
-  const agents = loadAgents();
-  const { category, skill, q } = req.query;
-  
-  let results = Object.values(agents);
-  
-  // Filter by category
-  if (category) {
-    const categorySkills = skillTaxonomy.getSkillsByCategory(category);
-    results = results.filter(a => 
-      a.skills.some(s => categorySkills.includes(s.toLowerCase()))
-    );
-  }
-  
-  // Filter by specific skill
-  if (skill) {
-    const skills = Array.isArray(skill) ? skill : [skill];
-    results = results.filter(a => 
-      skills.some(s => a.skills.includes(s.toLowerCase()))
-    );
-  }
-  
-  // Text search
-  if (q) {
-    const query = q.toLowerCase();
-    results = results.filter(a => 
-      a.name.toLowerCase().includes(query) ||
-      a.bio.toLowerCase().includes(query) ||
-      a.skills.some(s => s.toLowerCase().includes(query))
-    );
-  }
-  
-  // Calculate match scores if filtering
-  if (category || skill) {
-    const targetSkills = skill 
-      ? (Array.isArray(skill) ? skill : [skill])
-      : skillTaxonomy.getSkillsByCategory(category);
-    
-    results = results.map(a => ({
-      ...a,
-      matchScore: targetSkills.filter(s => a.skills.includes(s.toLowerCase())).length
-    })).sort((a, b) => b.matchScore - a.matchScore);
-  }
-  
-  res.json(results);
-});
-
-router.get('/api/compatibility', (req, res) => {
+router.get('/api/compatibility', async (req, res) => {
   const { agent1, agent2 } = req.query;
   
   if (!agent1 || !agent2) {
     return res.status(400).json({ error: 'Provide agent1 and agent2 parameters' });
   }
   
-  const agents = loadAgents();
-  const a1 = agents[agent1];
-  const a2 = agents[agent2];
-  
-  if (!a1 || !a2) {
-    return res.status(404).json({ error: 'One or both agents not found' });
+  try {
+    const agents = await getAgentsRegistry();
+    const a1 = agents[agent1];
+    const a2 = agents[agent2];
+    
+    if (!a1 || !a2) {
+      return res.status(404).json({ error: 'One or both agents not found' });
+    }
+    
+    const compatibility = skillTaxonomy.calculateCompatibility(a1.skills || [], a2.skills || []);
+    
+    res.json({
+      agents: [agent1, agent2],
+      compatibility
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
-  
-  const compatibility = skillTaxonomy.calculateCompatibility(a1.skills, a2.skills);
-  
-  res.json({
-    agents: [agent1, agent2],
-    compatibility
-  });
 });
 
 module.exports = router;

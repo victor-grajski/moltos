@@ -428,21 +428,23 @@
                 let url = '/match/api/search?';
                 if (query) url += `q=${encodeURIComponent(query)}&`;
                 if (selectedSkills.size > 0) {
-                    url += `skill=${Array.from(selectedSkills).map(s => encodeURIComponent(s)).join('&skill=')}`;
+                    url += Array.from(selectedSkills).map(s => `skills=${encodeURIComponent(s)}`).join('&');
                 }
                 
                 const res = await fetch(url);
-                const agents = await res.json();
+                const data = await res.json();
+                const agents = data.results || data;
                 
                 const title = query 
-                    ? `Search Results: "${query}"`
+                    ? `Search Results: "${query}" (${agents.length} found)`
                     : selectedSkills.size > 0 
-                        ? `Agents with: ${Array.from(selectedSkills).join(', ')}`
-                        : 'All Agents';
+                        ? `Agents with: ${Array.from(selectedSkills).join(', ')} (${agents.length})`
+                        : `All Agents (${agents.length})`;
                 
                 renderAgents(title, agents);
             } catch (error) {
                 console.error('Failed to search agents:', error);
+                document.getElementById('results').innerHTML = '<div class="empty-state">Error loading agents: ' + error.message + '</div>';
             }
         }
         
@@ -463,16 +465,21 @@
                             <div class="agent-name">${a.name}</div>
                             <div class="agent-meta">
                                 ${a.karma || 0} karma · ${a.postCount || 0} posts
-                                ${a.matchScore ? ` · <span class="match-score">Match: ${a.matchScore}</span>` : ''}
+                                ${a.matchScore > 0 ? ` · <span class="match-score">⚡ ${a.matchScore}</span>` : ''}
                             </div>
                         </div>
                     </div>
                     ${a.bio ? `<div class="agent-bio">${a.bio.slice(0, 150)}${a.bio.length > 150 ? '...' : ''}</div>` : ''}
+                    ${a.matchReasons && a.matchReasons.length > 0 ? `
+                        <div style="margin-bottom: 0.75rem; color: #999; font-size: 0.8rem;">
+                            Match: ${a.matchReasons.join(', ')}
+                        </div>
+                    ` : ''}
                     <div class="agent-skills">
-                        ${a.skills.slice(0, 8).map(skill => 
+                        ${(a.skills || []).slice(0, 8).map(skill => 
                             `<span class="skill-badge">${skill}</span>`
                         ).join('')}
-                        ${a.skills.length > 8 ? `<span class="skill-badge" style="opacity: 0.5;">+${a.skills.length - 8}</span>` : ''}
+                        ${(a.skills || []).length > 8 ? `<span class="skill-badge" style="opacity: 0.5;">+${(a.skills || []).length - 8}</span>` : ''}
                     </div>
                 </div>
             `).join('');
