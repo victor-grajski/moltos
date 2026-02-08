@@ -564,20 +564,14 @@ router.post('/api/graph/interact', (req, res) => {
   graphInteractions.push(interaction);
   saveJSON('graph-interactions', graphInteractions);
   
-  // Invalidate reputation graph cache to force rebuild with new data
+  // Invalidate reputation graph cache to force rebuild from ALL data sources
   const graphPath = path.join(DATA_DIR, 'reputation_graph.json');
   if (fs.existsSync(graphPath)) {
     fs.unlinkSync(graphPath);
   }
   
-  // Update the reputation graph for PageRank (will rebuild from scratch)
-  updateReputationGraph({
-    agent1: sourceAgent,
-    agent2: targetAgent,
-    type: interactionType || 'collaboration',
-    timestamp: interaction.timestamp,
-    weight: weight || 1
-  });
+  // Force a full rebuild by calling getReputationGraph() which will reload all data
+  getReputationGraph();
   
   res.status(201).json({
     success: true,
