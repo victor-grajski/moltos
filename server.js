@@ -119,6 +119,19 @@ app.use('/api/credit', creditRouter);
 app.use('/api/gov', govRouter);
 app.use('/api/validate', validateRouter);
 
+// Skill distribution routes - serve skill files for moltbook integration
+app.get('/skill.md', (req, res) => {
+  res.sendFile(path.join(__dirname, 'packages/skill/SKILL.md'));
+});
+
+app.get('/skill.json', (req, res) => {
+  res.sendFile(path.join(__dirname, 'packages/skill/skill.json'));
+});
+
+app.get('/heartbeat.md', (req, res) => {
+  res.sendFile(path.join(__dirname, 'packages/skill/HEARTBEAT.md'));
+});
+
 // Unified health check
 app.get('/health', async (req, res) => {
   const services = {};
