@@ -183,18 +183,24 @@ router.get('/api/timeline', (req, res) => {
 
 // Log event
 router.post('/api/events', (req, res) => {
-  const { eventType, source, metadata, timestamp } = req.body;
+  const { eventType, type, source, agent, metadata, timestamp } = req.body;
   
-  if (!eventType || !source) {
-    return res.status(400).json({ error: 'eventType and source are required' });
+  // Support both new (eventType/source) and legacy (type/agent) field names
+  const finalEventType = eventType || type;
+  const finalSource = source || agent || 'unknown';
+  
+  if (!finalEventType) {
+    return res.status(400).json({ error: 'eventType (or type) is required' });
   }
   
   const events = loadEvents();
   
   const event = {
     id: uuidv4(),
-    eventType,
-    source,
+    eventType: finalEventType,
+    type: finalEventType, // Store both for backwards compatibility
+    source: finalSource,
+    agent: finalSource, // Store both for backwards compatibility
     metadata: metadata || {},
     timestamp: timestamp || new Date().toISOString()
   };
