@@ -26,48 +26,61 @@ if [ "$HTTP_CODE" != "200" ]; then
   echo "❌ FAILED - HTTP $HTTP_CODE"
   echo ""
   echo "Response:"
-  echo "$BODY" | jq . 2>/dev/null || echo "$BODY"
+  echo "$BODY"
   exit 1
 fi
 
-# Parse the JSON response
-STATUS=$(echo "$BODY" | jq -r '.status' 2>/dev/null || echo "unknown")
-UNHEALTHY=$(echo "$BODY" | jq -r '.unhealthy[]' 2>/dev/null || echo "")
-SERVICE_COUNT=$(echo "$BODY" | jq '.services | length' 2>/dev/null || echo "0")
+# Use Node.js to parse JSON (always available in Node containers)
+node -e "
+const data = $BODY;
+const status = data.status;
+const services = data.services;
+const unhealthy = data.unhealthy || [];
+const serviceCount = Object.keys(services).length;
 
-echo "📊 Overall Status: $STATUS"
-echo "📦 Services Checked: $SERVICE_COUNT"
-echo ""
+console.log('📊 Overall Status:', status);
+console.log('📦 Services Checked:', serviceCount);
+console.log('');
 
-if [ "$STATUS" = "healthy" ]; then
-  echo "✅ ALL SERVICES HEALTHY"
-  echo ""
-  echo "Service Response Times:"
-  echo "$BODY" | jq -r '.services | to_entries[] | "  • \(.key): \(.value.ms)ms (\(.value.status))"' 2>/dev/null | sort
-  echo ""
-  echo "🎉 Deploy verified successfully!"
-  exit 0
-else
-  echo "❌ UNHEALTHY SERVICES DETECTED"
-  echo ""
-  if [ -n "$UNHEALTHY" ]; then
-    echo "Failed services:"
-    echo "$UNHEALTHY" | while read -r service; do
-      if [ -n "$service" ]; then
-        STATUS=$(echo "$BODY" | jq -r ".services[\"$service\"].status" 2>/dev/null || echo "unknown")
-        ERROR=$(echo "$BODY" | jq -r ".services[\"$service\"].error // empty" 2>/dev/null || echo "")
-        echo "  ❌ $service ($STATUS)"
-        if [ -n "$ERROR" ]; then
-          echo "     Error: $ERROR"
-        fi
-      fi
-    done
-    echo ""
-  fi
+if (status === 'healthy') {
+  console.log('✅ ALL SERVICES HEALTHY');
+  console.log('');
+  console.log('Service Response Times:');
   
-  echo "All services:"
-  echo "$BODY" | jq -r '.services | to_entries[] | "  \(if .value.status == "ok" then "✅" else "❌" end) \(.key): \(.value.ms)ms (\(.value.status))"' 2>/dev/null | sort
-  echo ""
-  echo "💥 Deploy verification FAILED"
-  exit 1
-fi
+  // Sort and display services
+  const sorted = Object.entries(services).sort((a, b) => a[0].localeCompare(b[0]));
+  sorted.forEach(([name, info]) => {
+    console.log('  • ' + name + ': ' + info.ms + 'ms (' + info.status + ')');
+  });
+  
+  console.log('');
+  console.log('🎉 Deploy verified successfully!');
+  process.exit(0);
+} else {
+  console.log('❌ UNHEALTHY SERVICES DETECTED');
+  console.log('');
+  
+  if (unhealthy.length > 0) {
+    console.log('Failed services:');
+    unhealthy.forEach(serviceName => {
+      const info = services[serviceName];
+      console.log('  ❌ ' + serviceName + ' (' + info.status + ')');
+      if (info.error) {
+        console.log('     Error: ' + info.error);
+      }
+    });
+    console.log('');
+  }
+  
+  console.log('All services:');
+  const sorted = Object.entries(services).sort((a, b) => a[0].localeCompare(b[0]));
+  sorted.forEach(([name, info]) => {
+    const icon = info.status === 'ok' ? '✅' : '❌';
+    console.log('  ' + icon + ' ' + name + ': ' + info.ms + 'ms (' + info.status + ')');
+  });
+  
+  console.log('');
+  console.log('💥 Deploy verification FAILED');
+  process.exit(1);
+}
+"

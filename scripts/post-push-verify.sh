@@ -50,21 +50,43 @@ else
     # Try to get the health status
     echo "### Response:"
     echo '```json'
-    curl -s https://moltos.up.railway.app/health/all 2>/dev/null | jq . || echo "Failed to fetch health status"
+    HEALTH_RESPONSE=$(curl -s https://moltos.up.railway.app/health/all 2>/dev/null || echo '{"error": "Failed to fetch"}')
+    echo "$HEALTH_RESPONSE" | node -e "
+      const readline = require('readline');
+      const rl = readline.createInterface({ input: process.stdin });
+      let data = '';
+      rl.on('line', line => data += line);
+      rl.on('close', () => {
+        try {
+          const json = JSON.parse(data);
+          console.log(JSON.stringify(json, null, 2));
+        } catch (e) {
+          console.log(data);
+        }
+      });
+    " 2>/dev/null || echo "$HEALTH_RESPONSE"
     echo '```'
     echo ""
     
     echo "### Unhealthy Services:"
-    UNHEALTHY=$(curl -s https://moltos.up.railway.app/health/all 2>/dev/null | jq -r '.unhealthy[]' 2>/dev/null || echo "")
-    if [ -n "$UNHEALTHY" ]; then
-      echo "$UNHEALTHY" | while read -r service; do
-        if [ -n "$service" ]; then
-          echo "- $service"
-        fi
-      done
-    else
-      echo "- Could not determine unhealthy services"
-    fi
+    echo "$HEALTH_RESPONSE" | node -e "
+      const readline = require('readline');
+      const rl = readline.createInterface({ input: process.stdin });
+      let data = '';
+      rl.on('line', line => data += line);
+      rl.on('close', () => {
+        try {
+          const json = JSON.parse(data);
+          if (json.unhealthy && json.unhealthy.length > 0) {
+            json.unhealthy.forEach(s => console.log('- ' + s));
+          } else {
+            console.log('- Could not determine unhealthy services');
+          }
+        } catch (e) {
+          console.log('- Error parsing response');
+        }
+      });
+    " 2>/dev/null || echo "- Could not parse response"
     echo ""
     echo "---"
     echo ""
