@@ -8,7 +8,7 @@ const router = express.Router();
 const MOLTBOOK_API = 'https://moltbook.com';
 const MOLTBOOK_TOKEN = process.env.MOLTBOOK_API_KEY || 'moltbook_sk_FrfNTK2tHCYxm004W3aWm12G5tecUWyV';
 const DATA_FILE = path.join(__dirname, '../../data/match/agents.json');
-const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://localhost:3000';
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'https://moltos.up.railway.app';
 
 // Serve static files (dashboard)
 router.use(express.static(path.join(__dirname, 'public')));
