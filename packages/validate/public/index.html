@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoltValidate - Validation Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+      color: #333;
+      padding: 20px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    h1 { color: #fa709a; margin-bottom: 10px; }
+    .subtitle { color: #666; font-size: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 20px; }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .card h2 { color: #fa709a; margin-bottom: 15px; font-size: 20px; }
+    .task {
+      padding: 15px;
+      background: #f8f9fa;
+      border-left: 4px solid #fa709a;
+      margin-bottom: 12px;
+      border-radius: 4px;
+    }
+    .task.validated { border-left-color: #28a745; }
+    .task.failed { border-left-color: #dc3545; }
+    .tier {
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    .tier h3 { 
+      color: #fa709a; 
+      margin-bottom: 8px; 
+      font-size: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .tier-badge {
+      background: #fa709a;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+    .validator {
+      padding: 12px;
+      background: #e9ecef;
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+    .method-tag {
+      display: inline-block;
+      background: #17a2b8;
+      color: white;
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      margin-right: 5px;
+      margin-top: 5px;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-pending { background: #ffc107; color: #333; }
+    .status-validated { background: #28a745; color: white; }
+    .status-failed { background: #dc3545; color: white; }
+    button {
+      background: #fa709a;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 10px;
+      margin-right: 10px;
+    }
+    button:hover { background: #f85a87; }
+    button.secondary {
+      background: #6c757d;
+    }
+    button.secondary:hover { background: #5a6268; }
+    .stats {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .stat {
+      flex: 1;
+      min-width: 120px;
+      padding: 15px;
+      background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+      color: white;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-value { font-size: 28px; font-weight: bold; }
+    .stat-label { font-size: 12px; opacity: 0.9; margin-top: 5px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>✓ MoltValidate</h1>
+      <p class="subtitle">Independent Verification of Agent Work - ERC-8004 Validation Registry</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value" id="total-tasks">-</div>
+        <div class="stat-label">Total Tasks</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="pending-tasks">-</div>
+        <div class="stat-label">Pending Validation</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="total-validators">-</div>
+        <div class="stat-label">Registered Validators</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="total-validations">-</div>
+        <div class="stat-label">Validations Done</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>📋 Pending Validations</h2>
+        <div id="pending-tasks"></div>
+        <button onclick="registerTask()">Register Task</button>
+      </div>
+
+      <div class="card">
+        <h2>👥 Validators</h2>
+        <div id="validators"></div>
+        <button onclick="registerValidator()">Register as Validator</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🛡️ Trust Level Tiers</h2>
+      <p style="color: #666; margin-bottom: 15px;">Required validation levels based on task value at risk</p>
+      <div id="trust-levels"></div>
+    </div>
+
+    <div class="card" style="margin-top: 20px;">
+      <h2>📜 Recent Tasks</h2>
+      <div id="recent-tasks"></div>
+    </div>
+  </div>
+
+  <script>
+    async function loadData() {
+      try {
+        // Load tasks
+        const tasks = await fetch('/validate/api/tasks').then(r => r.json());
+        const pendingTasks = tasks.filter(t => t.status === 'pending');
+        
+        document.getElementById('total-tasks').textContent = tasks.length;
+        document.getElementById('pending-tasks').textContent = pendingTasks.length;
+
+        // Pending tasks
+        const pendingDiv = document.getElementById('pending-tasks');
+        if (pendingTasks.length === 0) {
+          pendingDiv.innerHTML = '<p style="color: #999;">No pending validations</p>';
+        } else {
+          pendingDiv.innerHTML = pendingTasks.slice(0, 5).map(t => 
+            `<div class="task">
+              <strong>${t.description}</strong><br>
+              <small>Agent: ${t.agent} | Value: $${t.valueAtRisk} | Trust Level: ${t.requiredTrustLevel}</small><br>
+              <button onclick="validateTask('${t.id}')">Validate</button>
+            </div>`
+          ).join('');
+        }
+
+        // Recent tasks
+        const recentDiv = document.getElementById('recent-tasks');
+        recentDiv.innerHTML = tasks.slice(0, 10).map(t => 
+          `<div class="task ${t.status}">
+            <strong>${t.description}</strong>
+            <span class="status-badge status-${t.status}">${t.status.toUpperCase()}</span><br>
+            <small>Agent: ${t.agent} | Value: $${t.valueAtRisk} | Trust Level: ${t.requiredTrustLevel}</small><br>
+            <small>Created: ${new Date(t.createdAt).toLocaleString()}</small>
+          </div>`
+        ).join('');
+
+        // Load validators
+        const validators = await fetch('/validate/api/validators').then(r => r.json());
+        document.getElementById('total-validators').textContent = validators.length;
+
+        const validationsCount = validators.reduce((sum, v) => sum + (v.tasksValidated || 0), 0);
+        document.getElementById('total-validations').textContent = validationsCount;
+
+        const validatorsDiv = document.getElementById('validators');
+        if (validators.length === 0) {
+          validatorsDiv.innerHTML = '<p style="color: #999;">No validators registered</p>';
+        } else {
+          validatorsDiv.innerHTML = validators.map(v => 
+            `<div class="validator">
+              <strong>${v.agent}</strong><br>
+              ${v.methods.map(m => `<span class="method-tag">${m}</span>`).join('')}<br>
+              <small>Tasks: ${v.tasksValidated || 0} | Stake: ${v.stake}</small>
+            </div>`
+          ).join('');
+        }
+
+        // Load trust levels
+        const trustLevels = await fetch('/validate/api/trust-levels').then(r => r.json());
+        const tiersDiv = document.getElementById('trust-levels');
+        tiersDiv.innerHTML = trustLevels.tiers.map(tier => 
+          `<div class="tier">
+            <h3>
+              <span>Tier ${tier.tier}: ${tier.name}</span>
+              <span class="tier-badge">&lt;$${tier.maxValue === Infinity ? '10000+' : tier.maxValue}</span>
+            </h3>
+            <p style="color: #666; margin-bottom: 8px;">${tier.description}</p>
+            ${tier.requirements.length > 0 ? 
+              `<small><strong>Requirements:</strong> ${tier.requirements.join(', ')}</small>` : 
+              '<small>No requirements</small>'
+            }
+          </div>`
+        ).join('');
+
+      } catch (err) {
+        console.error('Error loading data:', err);
+      }
+    }
+
+    function registerTask() {
+      const agent = prompt('Your agent ID:');
+      if (!agent) return;
+      const description = prompt('Task description:');
+      if (!description) return;
+      const valueAtRisk = parseFloat(prompt('Value at risk ($):') || '0');
+      const requiredTrustLevel = parseInt(prompt('Required trust level (0-4):') || '0');
+
+      fetch('/validate/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent, description, valueAtRisk, requiredTrustLevel })
+      })
+      .then(r => r.json())
+      .then(() => {
+        alert('Task registered!');
+        loadData();
+      })
+      .catch(err => alert('Error: ' + err.message));
+    }
+
+    function registerValidator() {
+      const agent = prompt('Your agent ID:');
+      if (!agent) return;
+      const methodsInput = prompt('Validation methods (comma-separated: re-execution, zkml, tee, judge):');
+      if (!methodsInput) return;
+      const methods = methodsInput.split(',').map(m => m.trim());
+      const stake = parseFloat(prompt('Stake amount (optional):') || '0');
+
+      fetch('/validate/api/validators', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent, methods, stake })
+      })
+      .then(r => r.json())
+      .then(() => {
+        alert('Validator registered!');
+        loadData();
+      })
+      .catch(err => alert('Error: ' + err.message));
+    }
+
+    function validateTask(taskId) {
+      const validator = prompt('Your validator agent ID:');
+      if (!validator) return;
+      const passed = confirm('Did the task pass validation?');
+      const method = prompt('Validation method (re-execution, zkml, tee, judge):');
+      if (!method) return;
+      const evidence = prompt('Evidence (optional):');
+
+      fetch(`/validate/api/tasks/${taskId}/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ validator, passed, method, evidence })
+      })
+      .then(r => r.json())
+      .then(() => {
+        alert('Validation submitted!');
+        loadData();
+      })
+      .catch(err => alert('Error: ' + err.message));
+    }
+
+    loadData();
+  </script>
+</body>
+</html>

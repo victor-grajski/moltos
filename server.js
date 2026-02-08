@@ -47,6 +47,8 @@ const memoryRouter = require('./packages/memory/router');
 const forgeRouter = require('./packages/forge/router');
 const flowRouter = require('./packages/flow/router');
 const creditRouter = require('./packages/credit/router');
+const govRouter = require('./packages/gov/router');
+const validateRouter = require('./packages/validate/router');
 
 // Mount under route prefixes
 app.use('/watch', watchRouter);
@@ -80,6 +82,8 @@ app.use('/memory', memoryRouter);
 app.use('/forge', forgeRouter);
 app.use('/flow', flowRouter);
 app.use('/credit', creditRouter);
+app.use('/gov', govRouter);
+app.use('/validate', validateRouter);
 
 // Also mount under /api/* for backward compatibility
 app.use('/api/watch', watchRouter);
@@ -112,6 +116,8 @@ app.use('/api/memory', memoryRouter);
 app.use('/api/forge', forgeRouter);
 app.use('/api/flow', flowRouter);
 app.use('/api/credit', creditRouter);
+app.use('/api/gov', govRouter);
+app.use('/api/validate', validateRouter);
 
 // Unified health check
 app.get('/health', async (req, res) => {
@@ -149,7 +155,9 @@ app.get('/health', async (req, res) => {
     { name: 'memory', router: memoryRouter },
     { name: 'forge', router: forgeRouter },
     { name: 'flow', router: flowRouter },
-    { name: 'credit', router: creditRouter }
+    { name: 'credit', router: creditRouter },
+    { name: 'gov', router: govRouter },
+    { name: 'validate', router: validateRouter }
   ];
   
   for (const { name } of checks) {
