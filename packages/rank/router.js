@@ -469,6 +469,92 @@ router.post('/api/vouch', (req, res) => {
   res.status(201).json(result);
 });
 
+// --- Graph Interaction Endpoints ---
+
+router.post('/api/graph/interact', (req, res) => {
+  const { sourceAgent, targetAgent, interactionType, weight, metadata } = req.body;
+  
+  if (!sourceAgent || !targetAgent) {
+    return res.status(400).json({ error: 'sourceAgent and targetAgent are required' });
+  }
+  
+  // Load existing graph interactions
+  let graphInteractions = loadJSON('graph-interactions') || [];
+  
+  // Create new interaction
+  const interaction = {
+    id: `gint_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    sourceAgent,
+    targetAgent,
+    interactionType: interactionType || 'collaboration',
+    weight: weight || 1,
+    metadata: metadata || {},
+    timestamp: new Date().toISOString()
+  };
+  
+  // Store in graph-interactions.json
+  graphInteractions.push(interaction);
+  saveJSON('graph-interactions', graphInteractions);
+  
+  // Update the reputation graph for PageRank
+  updateReputationGraph({
+    agent1: sourceAgent,
+    agent2: targetAgent,
+    type: interactionType || 'collaboration',
+    timestamp: interaction.timestamp,
+    weight: weight || 1
+  });
+  
+  res.status(201).json({
+    success: true,
+    interaction
+  });
+});
+
+router.get('/api/graph/interactions', (req, res) => {
+  try {
+    const { agent, type, since, limit } = req.query;
+    
+    // Load all graph interactions
+    let interactions = loadJSON('graph-interactions') || [];
+    
+    // Apply filters
+    if (agent) {
+      const agentLower = agent.toLowerCase();
+      interactions = interactions.filter(i => 
+        i.sourceAgent.toLowerCase() === agentLower || 
+        i.targetAgent.toLowerCase() === agentLower
+      );
+    }
+    
+    if (type) {
+      interactions = interactions.filter(i => i.interactionType === type);
+    }
+    
+    if (since) {
+      const sinceDate = new Date(since);
+      interactions = interactions.filter(i => new Date(i.timestamp) >= sinceDate);
+    }
+    
+    // Sort by timestamp (newest first)
+    interactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    // Apply limit
+    if (limit) {
+      const limitNum = parseInt(limit, 10);
+      interactions = interactions.slice(0, limitNum);
+    }
+    
+    res.json({
+      total: interactions.length,
+      interactions,
+      filters: { agent, type, since, limit }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get('/api/trust/:agentName', (req, res) => {
   const { interactions, vouches } = getTrustData();
   const trustScores = computeTrustScores(interactions, vouches);

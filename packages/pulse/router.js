@@ -183,19 +183,19 @@ router.get('/api/timeline', (req, res) => {
 
 // Log event
 router.post('/api/events', (req, res) => {
-  const { type, agent, data, timestamp } = req.body;
+  const { eventType, source, metadata, timestamp } = req.body;
   
-  if (!type || !agent) {
-    return res.status(400).json({ error: 'type and agent are required' });
+  if (!eventType || !source) {
+    return res.status(400).json({ error: 'eventType and source are required' });
   }
   
   const events = loadEvents();
   
   const event = {
     id: uuidv4(),
-    type,
-    agent,
-    data: data || {},
+    eventType,
+    source,
+    metadata: metadata || {},
     timestamp: timestamp || new Date().toISOString()
   };
   
@@ -211,20 +211,23 @@ router.post('/api/events', (req, res) => {
   // Check alert rules
   checkAlertRules();
   
-  res.status(201).json(event);
+  res.status(201).json({
+    id: event.id,
+    timestamp: event.timestamp
+  });
 });
 
 // Get events with filters
 router.get('/api/events', (req, res) => {
   let events = loadEvents();
-  const { type, agent, since, limit } = req.query;
+  const { eventType, source, since, limit } = req.query;
   
-  if (type) {
-    events = events.filter(e => e.type === type);
+  if (eventType) {
+    events = events.filter(e => e.eventType === eventType);
   }
   
-  if (agent) {
-    events = events.filter(e => e.agent.toLowerCase() === agent.toLowerCase());
+  if (source) {
+    events = events.filter(e => e.source && e.source.toLowerCase() === source.toLowerCase());
   }
   
   if (since) {

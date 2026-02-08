@@ -531,8 +531,8 @@
                 feed.innerHTML = events.map(event => `
                     <div class="event-item">
                         <div>
-                            <span class="event-type">${event.type}</span>
-                            <span class="event-agent">${event.agent}</span>
+                            <span class="event-type">${event.eventType || event.type || 'unknown'}</span>
+                            <span class="event-agent">${event.source || event.agent || 'unknown'}</span>
                         </div>
                         <div class="event-time">${new Date(event.timestamp).toLocaleString()}</div>
                     </div>
@@ -543,10 +543,10 @@
         }
         
         async function logEvent() {
-            const type = document.getElementById('eventType').value;
-            const agent = document.getElementById('eventAgent').value.trim();
+            const eventType = document.getElementById('eventType').value;
+            const source = document.getElementById('eventAgent').value.trim();
             
-            if (!agent) {
+            if (!source) {
                 alert('Agent name is required');
                 return;
             }
@@ -555,7 +555,7 @@
                 const res = await fetch('/pulse/api/events', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type, agent })
+                    body: JSON.stringify({ eventType, source, metadata: {} })
                 });
                 
                 if (res.ok) {

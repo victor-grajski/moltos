@@ -59,7 +59,7 @@ router.get('/health', (req, res) => {
 
 // Register new agent
 router.post('/api/agents', (req, res) => {
-  const { name, description, capabilities, services, x402Support, supportedTrust, registrations } = req.body;
+  const { name, description, capabilities, services, x402Support, supportedTrust, registrations, metadata } = req.body;
   
   if (!name) {
     return res.status(400).json({ error: 'Agent name is required' });
@@ -82,6 +82,7 @@ router.post('/api/agents', (req, res) => {
     x402Support: x402Support || false,
     supportedTrust: supportedTrust || ['reputation'],
     registrations: registrations || [],
+    metadata: metadata || {},
     active: true,
     createdAt: new Date().toISOString(),
     lastActive: null
@@ -95,7 +96,22 @@ router.post('/api/agents', (req, res) => {
 
 // List all agents
 router.get('/api/agents', (req, res) => {
-  const agents = loadAgents();
+  let agents = loadAgents();
+  
+  // Filter by name if provided
+  if (req.query.name) {
+    const searchName = req.query.name.toLowerCase();
+    agents = agents.filter(a => a.name.toLowerCase().includes(searchName));
+  }
+  
+  // Apply limit if provided
+  if (req.query.limit) {
+    const limit = parseInt(req.query.limit, 10);
+    if (!isNaN(limit) && limit > 0) {
+      agents = agents.slice(0, limit);
+    }
+  }
+  
   res.json(agents);
 });
 
