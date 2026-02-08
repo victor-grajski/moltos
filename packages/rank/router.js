@@ -345,6 +345,35 @@ router.get('/api/rankings/:dimension', (req, res) => {
   res.json({ dimension: dim, rankings: sorted.slice(0, 50) });
 });
 
+router.get('/api/agents', (req, res) => {
+  try {
+    // Get agents from reputation graph with PageRank scores
+    const graph = getReputationGraph();
+    const pagerank = computePageRank(graph);
+    const reputation = computeWeightedReputation(graph, pagerank);
+    
+    // Merge with lastScores if available for karma data
+    const agents = Object.values(reputation).map(agent => ({
+      name: agent.name,
+      karma: agent.karma,
+      pagerank: agent.pagerank,
+      interactions: agent.interactions,
+      weightedScore: agent.weightedScore
+    }));
+    
+    // Sort by weighted score (descending)
+    agents.sort((a, b) => b.weightedScore - a.weightedScore);
+    
+    res.json({
+      agents,
+      total: agents.length,
+      computedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get('/api/trending', (req, res) => {
   if (!lastScores) return res.json({ trending: [], message: 'No scores computed yet' });
   const trending = lastScores.rankings
