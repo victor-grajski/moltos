@@ -186,6 +186,95 @@ app.get('/health', async (req, res) => {
   });
 });
 
+// Comprehensive health check - hits all service health endpoints
+app.get('/health/all', async (req, res) => {
+  const http = require('http');
+  const serviceNames = [
+    'watch', 'board', 'match', 'rank', 'fund', 'sdk', 'market', 'pay', 
+    'auth', 'graph', 'pulse', 'mail', 'cast', 'dao', 'court', 'ads', 
+    'insure', 'index', 'dna', 'symbiosis', 'reef', 'spore', 'guild', 
+    'law', 'commons', 'mind', 'oracle', 'memory', 'forge', 'flow', 
+    'credit', 'gov', 'validate'
+  ];
+  
+  const services = {};
+  const unhealthy = [];
+  
+  // Internal health check helper
+  const checkService = (serviceName) => {
+    return new Promise((resolve) => {
+      const start = Date.now();
+      const options = {
+        hostname: 'localhost',
+        port: PORT,
+        path: `/${serviceName}/health`,
+        method: 'GET',
+        timeout: 5000
+      };
+      
+      const req = http.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => data += chunk);
+        res.on('end', () => {
+          const ms = Date.now() - start;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.status === 'ok' && res.statusCode === 200) {
+              resolve({ name: serviceName, status: 'ok', ms });
+            } else {
+              resolve({ name: serviceName, status: 'error', ms, error: 'unhealthy response' });
+            }
+          } catch (e) {
+            resolve({ name: serviceName, status: 'error', ms, error: 'invalid json' });
+          }
+        });
+      });
+      
+      req.on('error', (e) => {
+        const ms = Date.now() - start;
+        resolve({ name: serviceName, status: 'error', ms, error: e.message });
+      });
+      
+      req.on('timeout', () => {
+        req.destroy();
+        const ms = Date.now() - start;
+        resolve({ name: serviceName, status: 'error', ms, error: 'timeout' });
+      });
+      
+      req.end();
+    });
+  };
+  
+  // Check all services in parallel
+  const results = await Promise.all(serviceNames.map(checkService));
+  
+  // Build response
+  for (const result of results) {
+    services[result.name] = {
+      status: result.status,
+      ms: result.ms
+    };
+    
+    if (result.error) {
+      services[result.name].error = result.error;
+      unhealthy.push(result.name);
+    }
+    
+    if (result.status !== 'ok') {
+      unhealthy.push(result.name);
+    }
+  }
+  
+  const allHealthy = unhealthy.length === 0;
+  
+  res.status(allHealthy ? 200 : 503).json({
+    status: allHealthy ? 'healthy' : 'degraded',
+    services,
+    unhealthy,
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log('╔═══════════════════════════════════════════════════════╗');
