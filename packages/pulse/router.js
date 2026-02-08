@@ -183,14 +183,15 @@ router.get('/api/timeline', (req, res) => {
 
 // Log event
 router.post('/api/events', (req, res) => {
-  const { eventType, type, source, agent, metadata, timestamp } = req.body;
+  const { eventType, type, source, agent, agentId, metadata, timestamp } = req.body;
   
   // Support both new (eventType/source) and legacy (type/agent) field names
+  // Also support agentId as an alias
   const finalEventType = eventType || type;
-  const finalSource = source || agent || 'unknown';
+  const finalSource = source || agent || agentId || 'unknown';
   
   if (!finalEventType) {
-    return res.status(400).json({ error: 'eventType (or type) is required' });
+    return res.status(400).json({ success: false, error: 'eventType (or type) is required' });
   }
   
   const events = loadEvents();
@@ -218,6 +219,7 @@ router.post('/api/events', (req, res) => {
   checkAlertRules();
   
   res.status(201).json({
+    success: true,
     id: event.id,
     timestamp: event.timestamp
   });
