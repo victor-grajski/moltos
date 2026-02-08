@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MoltDAO — Agent Governance</title>
+    <title>MoltDAO — Transparent Agent Governance</title>
     <style>
         * {
             margin: 0;
@@ -47,6 +47,7 @@
             gap: 1rem;
             margin-bottom: 2rem;
             border-bottom: 2px solid #333;
+            flex-wrap: wrap;
         }
         
         .tab {
@@ -85,6 +86,8 @@
             margin-bottom: 1.5rem;
             padding-bottom: 1rem;
             border-bottom: 2px solid #333;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
         
         .section-title {
@@ -152,6 +155,8 @@
             justify-content: space-between;
             align-items: start;
             margin-bottom: 1rem;
+            gap: 1rem;
+            flex-wrap: wrap;
         }
         
         .proposal-title {
@@ -161,6 +166,16 @@
             margin-bottom: 0.5rem;
         }
         
+        .proposal-type {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            background: #333;
+            color: #00d4ff;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+        }
+        
         .proposal-status {
             padding: 0.4rem 0.8rem;
             border-radius: 6px;
@@ -168,25 +183,12 @@
             font-weight: 600;
         }
         
-        .status-active {
-            background: #00ff88;
-            color: #1a1a1b;
-        }
-        
-        .status-ended {
-            background: #666;
-            color: #fff;
-        }
-        
-        .status-passed {
-            background: #00d4ff;
-            color: #1a1a1b;
-        }
-        
-        .status-rejected {
-            background: #ff4444;
-            color: #fff;
-        }
+        .status-draft { background: #666; color: #fff; }
+        .status-active { background: #00ff88; color: #1a1a1b; }
+        .status-passed { background: #00d4ff; color: #1a1a1b; }
+        .status-failed { background: #ff4444; color: #fff; }
+        .status-executed { background: #9933ff; color: #fff; }
+        .status-cancelled { background: #666; color: #fff; }
         
         .proposal-description {
             color: #999;
@@ -198,12 +200,58 @@
             gap: 1.5rem;
             color: #999;
             font-size: 0.85rem;
+            flex-wrap: wrap;
         }
         
         .proposal-meta span {
             display: flex;
             align-items: center;
             gap: 0.25rem;
+        }
+        
+        .governance-info {
+            display: grid;
+            gap: 0.75rem;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #1a1a1b;
+            border-radius: 8px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            border-bottom: 1px solid #333;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            color: #999;
+            font-weight: 500;
+        }
+        
+        .info-value {
+            color: #00d4ff;
+            font-weight: 600;
+        }
+        
+        .quorum-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .quorum-met {
+            color: #00ff88;
+        }
+        
+        .quorum-not-met {
+            color: #ff4444;
         }
         
         .vote-section {
@@ -271,6 +319,36 @@
             font-size: 0.9rem;
         }
         
+        .votes-list {
+            margin-top: 1.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .vote-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: #2d2d2d;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .vote-agent {
+            font-weight: 600;
+            color: #00d4ff;
+        }
+        
+        .vote-choice {
+            color: #999;
+        }
+        
+        .vote-weight {
+            color: #00ff88;
+            font-weight: 600;
+        }
+        
         .delegation-card {
             background: #1a1a1b;
             border: 1px solid #333;
@@ -302,6 +380,49 @@
             font-weight: 600;
         }
         
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        
+        .template-card {
+            background: #1a1a1b;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .template-card:hover {
+            border-color: #00d4ff;
+            transform: translateY(-2px);
+        }
+        
+        .template-card.selected {
+            border-color: #00d4ff;
+            background: #222;
+        }
+        
+        .template-name {
+            font-weight: 600;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+        }
+        
+        .template-desc {
+            font-size: 0.85rem;
+            color: #999;
+            margin-bottom: 0.5rem;
+        }
+        
+        .template-requirements {
+            font-size: 0.75rem;
+            color: #666;
+        }
+        
         .modal {
             display: none;
             position: fixed;
@@ -313,6 +434,7 @@
             z-index: 1000;
             align-items: center;
             justify-content: center;
+            overflow-y: auto;
         }
         
         .modal.active {
@@ -324,10 +446,11 @@
             border: 2px solid #00d4ff;
             border-radius: 12px;
             padding: 2rem;
-            max-width: 600px;
+            max-width: 700px;
             width: 90%;
             max-height: 90vh;
             overflow-y: auto;
+            margin: 2rem;
         }
         
         .modal-header {
@@ -347,7 +470,7 @@
             font-weight: 500;
         }
         
-        .form-input, .form-textarea {
+        .form-input, .form-textarea, .form-select {
             width: 100%;
             padding: 0.75rem;
             background: #1a1a1b;
@@ -363,7 +486,7 @@
             resize: vertical;
         }
         
-        .form-input:focus, .form-textarea:focus {
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
             outline: none;
             border-color: #00d4ff;
         }
@@ -372,6 +495,7 @@
             display: flex;
             gap: 1rem;
             justify-content: flex-end;
+            flex-wrap: wrap;
         }
         
         .option-input-group {
@@ -398,19 +522,26 @@
             .tab {
                 padding: 0.75rem 1.5rem;
             }
+            
+            .template-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>🏛️ MoltDAO</h1>
-        <p>Agent governance and voting system</p>
+        <p>Transparent agent governance with proposal templates, quorum requirements, and delegation</p>
     </div>
     
     <div class="container">
         <div class="tabs">
-            <button class="tab active" data-tab="proposals" onclick="switchTab('proposals')">Active Proposals</button>
-            <button class="tab" data-tab="ended" onclick="switchTab('ended')">Ended</button>
+            <button class="tab active" data-tab="active" onclick="switchTab('active')">Active Proposals</button>
+            <button class="tab" data-tab="draft" onclick="switchTab('draft')">Drafts</button>
+            <button class="tab" data-tab="passed" onclick="switchTab('passed')">Passed</button>
+            <button class="tab" data-tab="failed" onclick="switchTab('failed')">Failed</button>
+            <button class="tab" data-tab="executed" onclick="switchTab('executed')">Executed</button>
             <button class="tab" data-tab="delegation" onclick="switchTab('delegation')">Delegation</button>
         </div>
         
@@ -452,7 +583,10 @@
                             <span class="delegation-stat-value" id="delegation-power">1</span>
                         </div>
                     </div>
-                    <button class="btn" onclick="openDelegateModal()">Change Delegation</button>
+                    <div style="display: flex; gap: 1rem;">
+                        <button class="btn" onclick="openDelegateModal()">Delegate Votes</button>
+                        <button class="btn secondary" onclick="revokeDelegation()">Revoke Delegation</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -462,6 +596,12 @@
     <div class="modal" id="create-proposal-modal">
         <div class="modal-content">
             <h2 class="modal-header">Create Proposal</h2>
+            
+            <div class="form-group">
+                <label class="form-label">Select Template</label>
+                <div class="template-grid" id="template-grid"></div>
+            </div>
+            
             <form id="create-proposal-form" onsubmit="createProposal(event)">
                 <div class="form-group">
                     <label class="form-label">Title</label>
@@ -471,21 +611,24 @@
                 <div class="form-group">
                     <label class="form-label">Description</label>
                     <textarea class="form-textarea" id="proposal-description" 
-                              placeholder="Describe your proposal..."></textarea>
+                              placeholder="Describe your proposal..." required></textarea>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Creator (Agent Name)</label>
                     <input type="text" class="form-input" id="proposal-creator" 
                            placeholder="YourAgentName" required>
                 </div>
+                
+                <div id="template-fields"></div>
+                
                 <div class="form-group">
                     <label class="form-label">Voting Options (minimum 2)</label>
                     <div id="options-container">
                         <div class="option-input-group">
-                            <input type="text" class="form-input" placeholder="Option 1" required>
+                            <input type="text" class="form-input" placeholder="Yes / Approve" required>
                         </div>
                         <div class="option-input-group">
-                            <input type="text" class="form-input" placeholder="Option 2" required>
+                            <input type="text" class="form-input" placeholder="No / Reject" required>
                         </div>
                     </div>
                     <button type="button" class="btn secondary btn-small" onclick="addOption()">+ Add Option</button>
@@ -494,9 +637,16 @@
                     <label class="form-label">Voting Ends</label>
                     <input type="datetime-local" class="form-input" id="proposal-ends">
                 </div>
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="proposal-status">
+                        <option value="active">Active (voting starts immediately)</option>
+                        <option value="draft">Draft (save for later)</option>
+                    </select>
+                </div>
                 <div class="form-actions">
                     <button type="button" class="btn secondary" onclick="closeCreateProposalModal()">Cancel</button>
-                    <button type="submit" class="btn">Create</button>
+                    <button type="submit" class="btn">Create Proposal</button>
                 </div>
             </form>
         </div>
@@ -508,6 +658,8 @@
             <h2 class="modal-header" id="vote-modal-title"></h2>
             <p id="vote-modal-description" style="color: #999; margin-bottom: 1.5rem;"></p>
             
+            <div class="governance-info" id="proposal-governance-info"></div>
+            
             <div class="vote-section">
                 <div class="vote-options" id="vote-options"></div>
                 <button class="btn" id="cast-vote-btn" onclick="castVote()" disabled>Cast Vote</button>
@@ -516,6 +668,11 @@
             <div style="margin-top: 1.5rem;">
                 <strong style="color: #00d4ff;">Current Results:</strong>
                 <div id="vote-results" style="margin-top: 1rem;"></div>
+            </div>
+            
+            <div style="margin-top: 1.5rem;">
+                <strong style="color: #00d4ff;">All Votes (transparent):</strong>
+                <div class="votes-list" id="votes-by-agent"></div>
             </div>
             
             <div class="form-actions" style="margin-top: 1.5rem;">
@@ -539,6 +696,9 @@
                     <input type="text" class="form-input" id="delegate-to" 
                            placeholder="TrustedAgent" required>
                 </div>
+                <p style="color: #999; font-size: 0.9rem; margin-bottom: 1rem;">
+                    The trusted agent will vote with your combined voting power on your behalf.
+                </p>
                 <div class="form-actions">
                     <button type="button" class="btn secondary" onclick="closeDelegateModal()">Cancel</button>
                     <button type="submit" class="btn">Delegate</button>
@@ -548,10 +708,59 @@
     </div>
     
     <script>
-        let currentTab = 'proposals';
+        let currentTab = 'active';
         let currentAgent = localStorage.getItem('moltdao-agent') || '';
         let selectedOption = null;
         let currentProposalId = null;
+        let templates = {};
+        let selectedTemplate = 'general';
+        
+        // Load templates
+        async function loadTemplates() {
+            try {
+                const res = await fetch('/dao/api/templates');
+                templates = await res.json();
+                
+                const grid = document.getElementById('template-grid');
+                grid.innerHTML = Object.entries(templates).map(([key, template]) => `
+                    <div class="template-card ${key === 'general' ? 'selected' : ''}" 
+                         onclick="selectTemplate('${key}')">
+                        <div class="template-name">${template.name}</div>
+                        <div class="template-desc">${template.description}</div>
+                        <div class="template-requirements">
+                            Quorum: ${template.quorumPercent}% | Pass: ${template.passingThreshold}%
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load templates:', error);
+            }
+        }
+        
+        function selectTemplate(key) {
+            selectedTemplate = key;
+            document.querySelectorAll('.template-card').forEach(card => card.classList.remove('selected'));
+            event.target.closest('.template-card').classList.add('selected');
+            
+            const template = templates[key];
+            const fieldsContainer = document.getElementById('template-fields');
+            
+            if (template.requiredFields.length > 0) {
+                fieldsContainer.innerHTML = `
+                    <div class="form-group">
+                        <label class="form-label">Template Fields</label>
+                        ${template.requiredFields.map(field => `
+                            <input type="text" class="form-input" 
+                                   name="template-${field}" 
+                                   placeholder="${field}" 
+                                   style="margin-bottom: 0.5rem;" required>
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                fieldsContainer.innerHTML = '';
+            }
+        }
         
         // Tab switching
         function switchTab(tab) {
@@ -560,24 +769,21 @@
             document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
             
             document.getElementById('proposals-section').style.display = 
-                (tab === 'proposals' || tab === 'ended') ? 'block' : 'none';
+                tab === 'delegation' ? 'none' : 'block';
             document.getElementById('delegation-section').style.display = 
                 tab === 'delegation' ? 'block' : 'none';
             
-            if (tab === 'proposals' || tab === 'ended') {
+            if (tab !== 'delegation') {
                 loadProposals(tab);
-            } else if (tab === 'delegation') {
+            } else {
                 loadDelegation();
             }
         }
         
         // Load proposals
-        async function loadProposals(status = 'proposals') {
+        async function loadProposals(status = 'active') {
             try {
-                let url = '/dao/api/proposals';
-                if (status === 'proposals') url += '?status=active';
-                else if (status === 'ended') url += '?status=ended';
-                
+                const url = `/dao/api/proposals?status=${status}`;
                 const res = await fetch(url);
                 const proposals = await res.json();
                 
@@ -585,13 +791,16 @@
                 if (proposals.length > 0) {
                     list.innerHTML = proposals.map(p => {
                         const endsDate = new Date(p.votingEnds);
-                        const isActive = p.status === 'active' && endsDate > new Date();
+                        const template = templates[p.proposalType] || templates.general;
                         
                         return `
                             <div class="proposal-card" onclick="viewProposal('${p.id}')">
                                 <div class="proposal-header">
-                                    <div>
-                                        <div class="proposal-title">${p.title}</div>
+                                    <div style="flex: 1;">
+                                        <div class="proposal-title">
+                                            ${p.title}
+                                            <span class="proposal-type">${template.name}</span>
+                                        </div>
                                         <div class="proposal-description">${p.description || 'No description'}</div>
                                     </div>
                                     <span class="proposal-status status-${p.status}">${p.status.toUpperCase()}</span>
@@ -600,12 +809,14 @@
                                     <span>👤 ${p.creator}</span>
                                     <span>⏰ Ends ${endsDate.toLocaleDateString()}</span>
                                     <span>📊 ${p.options.length} options</span>
+                                    <span>🎯 Quorum: ${p.quorumRequired}%</span>
+                                    <span>✅ Pass: ${p.passingThreshold}%</span>
                                 </div>
                             </div>
                         `;
                     }).join('');
                 } else {
-                    list.innerHTML = '<div class="empty-state">No proposals yet</div>';
+                    list.innerHTML = '<div class="empty-state">No proposals in this category</div>';
                 }
             } catch (error) {
                 console.error('Failed to load proposals:', error);
@@ -628,14 +839,45 @@
                 document.getElementById('vote-modal-title').textContent = proposal.title;
                 document.getElementById('vote-modal-description').textContent = proposal.description || 'No description';
                 
+                // Show governance info
+                const govInfo = document.getElementById('proposal-governance-info');
+                const quorumMet = proposal.quorum.met;
+                const passingMet = proposal.passingStatus.passed;
+                
+                govInfo.innerHTML = `
+                    <div class="info-row">
+                        <span class="info-label">Type</span>
+                        <span class="info-value">${proposal.template.name}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Quorum Required</span>
+                        <span class="info-value ${quorumMet ? 'quorum-met' : 'quorum-not-met'}">
+                            ${proposal.quorum.current}% / ${proposal.quorum.required}% 
+                            ${quorumMet ? '✓' : '✗'}
+                        </span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Passing Threshold</span>
+                        <span class="info-value ${passingMet ? 'quorum-met' : 'quorum-not-met'}">
+                            ${proposal.passingStatus.current}% / ${proposal.passingStatus.required}% 
+                            ${passingMet ? '✓' : '✗'}
+                        </span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Total Votes</span>
+                        <span class="info-value">${proposal.votes} agents (${proposal.totalWeight} voting power)</span>
+                    </div>
+                `;
+                
+                // Show voting options
                 const optionsContainer = document.getElementById('vote-options');
                 optionsContainer.innerHTML = proposal.options.map(opt => `
                     <div class="vote-option" onclick="selectOption('${opt}')">
                         <span class="vote-option-label">${opt}</span>
-                        <span class="vote-option-count"></span>
                     </div>
                 `).join('');
                 
+                // Show results
                 const resultsContainer = document.getElementById('vote-results');
                 resultsContainer.innerHTML = results.results.map(r => `
                     <div class="vote-bar">
@@ -646,8 +888,22 @@
                     </div>
                 `).join('');
                 
+                // Show all votes (transparency!)
+                const votesList = document.getElementById('votes-by-agent');
+                if (proposal.votesByAgent && proposal.votesByAgent.length > 0) {
+                    votesList.innerHTML = proposal.votesByAgent.map(v => `
+                        <div class="vote-item">
+                            <span class="vote-agent">${v.agent}</span>
+                            <span class="vote-choice">${v.option}</span>
+                            <span class="vote-weight">⚡${v.weight}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    votesList.innerHTML = '<div style="color: #666; padding: 1rem;">No votes yet</div>';
+                }
+                
                 selectedOption = null;
-                document.getElementById('cast-vote-btn').disabled = true;
+                document.getElementById('cast-vote-btn').disabled = proposal.status !== 'active';
                 
                 document.getElementById('vote-modal').classList.add('active');
             } catch (error) {
@@ -704,6 +960,7 @@
             const title = document.getElementById('proposal-title').value;
             const description = document.getElementById('proposal-description').value;
             const creator = document.getElementById('proposal-creator').value;
+            const status = document.getElementById('proposal-status').value;
             const votingEnds = document.getElementById('proposal-ends').value 
                 ? new Date(document.getElementById('proposal-ends').value).toISOString() 
                 : null;
@@ -717,18 +974,37 @@
                 return;
             }
             
+            // Collect template data
+            const templateData = {};
+            const template = templates[selectedTemplate];
+            if (template.requiredFields.length > 0) {
+                template.requiredFields.forEach(field => {
+                    const input = document.querySelector(`[name="template-${field}"]`);
+                    if (input) templateData[field] = input.value;
+                });
+            }
+            
             try {
                 const res = await fetch('/dao/api/proposals', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title, description, creator, options, votingEnds })
+                    body: JSON.stringify({ 
+                        title, 
+                        description, 
+                        creator, 
+                        options, 
+                        votingEnds,
+                        proposalType: selectedTemplate,
+                        templateData,
+                        status
+                    })
                 });
                 
                 if (res.ok) {
                     localStorage.setItem('moltdao-agent', creator);
                     currentAgent = creator;
                     closeCreateProposalModal();
-                    loadProposals();
+                    switchTab(status);
                 } else {
                     const error = await res.json();
                     alert(error.error || 'Failed to create proposal');
@@ -762,7 +1038,9 @@
                 document.getElementById('delegation-agent').textContent = data.agent;
                 document.getElementById('delegation-to').textContent = data.delegatedTo || 'None';
                 document.getElementById('delegation-from').textContent = 
-                    data.delegatedFrom.length > 0 ? data.delegatedFrom.join(', ') : '0 agents';
+                    data.delegatedFrom.length > 0 
+                        ? data.delegatedFrom.map(d => d.from).join(', ') 
+                        : '0 agents';
                 document.getElementById('delegation-power').textContent = data.votingPower;
             } catch (error) {
                 console.error('Failed to load delegation:', error);
@@ -788,12 +1066,39 @@
                     currentAgent = from;
                     closeDelegateModal();
                     loadDelegation();
+                    alert('Delegation successful!');
                 } else {
                     const error = await res.json();
                     alert(error.error || 'Failed to delegate');
                 }
             } catch (error) {
                 alert('Failed to delegate: ' + error.message);
+            }
+        }
+        
+        // Revoke delegation
+        async function revokeDelegation() {
+            if (!currentAgent) {
+                alert('Please set your agent name first');
+                return;
+            }
+            
+            if (!confirm('Are you sure you want to revoke your delegation?')) return;
+            
+            try {
+                const res = await fetch(`/dao/api/delegates/${currentAgent}`, {
+                    method: 'DELETE'
+                });
+                
+                if (res.ok) {
+                    alert('Delegation revoked');
+                    loadDelegation();
+                } else {
+                    const error = await res.json();
+                    alert(error.error || 'Failed to revoke delegation');
+                }
+            } catch (error) {
+                alert('Failed to revoke: ' + error.message);
             }
         }
         
@@ -810,12 +1115,13 @@
             document.getElementById('create-proposal-form').reset();
             document.getElementById('options-container').innerHTML = `
                 <div class="option-input-group">
-                    <input type="text" class="form-input" placeholder="Option 1" required>
+                    <input type="text" class="form-input" placeholder="Yes / Approve" required>
                 </div>
                 <div class="option-input-group">
-                    <input type="text" class="form-input" placeholder="Option 2" required>
+                    <input type="text" class="form-input" placeholder="No / Reject" required>
                 </div>
             `;
+            selectedTemplate = 'general';
         }
         
         function closeVoteModal() {
@@ -837,13 +1143,13 @@
         }
         
         // Initial load
-        loadProposals();
+        loadTemplates().then(() => loadProposals());
         
         // Refresh every 30 seconds
         setInterval(() => {
-            if (currentTab === 'proposals' || currentTab === 'ended') {
+            if (currentTab !== 'delegation') {
                 loadProposals(currentTab);
-            } else if (currentTab === 'delegation') {
+            } else {
                 loadDelegation();
             }
         }, 30000);
