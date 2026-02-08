@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoltAuth — Identity & API Key Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1b;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1a1a1b 0%, #2d2d2d 100%);
+            padding: 2rem;
+            border-bottom: 3px solid #00d4ff;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+        
+        .header p {
+            color: #999;
+            font-size: 1.1rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: #2d2d2d;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            border-color: #00d4ff;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 212, 255, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #999;
+            font-size: 0.9rem;
+        }
+        
+        .section {
+            background: #2d2d2d;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #333;
+            padding-bottom: 1rem;
+        }
+        
+        .section-title {
+            color: #00d4ff;
+            font-size: 1.5rem;
+        }
+        
+        .btn {
+            padding: 0.6rem 1.2rem;
+            background: #00d4ff;
+            color: #1a1a1b;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: #00ff88;
+            transform: scale(1.05);
+        }
+        
+        .btn.secondary {
+            background: #333;
+            color: #00d4ff;
+        }
+        
+        .btn.secondary:hover {
+            background: #444;
+        }
+        
+        .btn.danger {
+            background: #ff4444;
+            color: white;
+        }
+        
+        .btn.danger:hover {
+            background: #ff6666;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.8rem;
+            background: #1a1a1b;
+            border: 2px solid #333;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-family: inherit;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+        
+        .agent-list {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .agent-item {
+            background: #1a1a1b;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .agent-item:hover {
+            border-color: #00d4ff;
+        }
+        
+        .agent-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .agent-name {
+            color: #00d4ff;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .agent-desc {
+            color: #999;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .agent-meta {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .capabilities {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .capability-tag {
+            background: #333;
+            color: #00d4ff;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+        
+        .key-item {
+            background: #1a1a1b;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .key-value {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            padding: 0.5rem;
+            border-radius: 4px;
+            color: #00ff88;
+            word-break: break-all;
+            margin: 0.5rem 0;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: #2d2d2d;
+            border: 2px solid #00d4ff;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .modal-title {
+            color: #00d4ff;
+            font-size: 1.5rem;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            color: #999;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .close-btn:hover {
+            color: #00d4ff;
+        }
+        
+        .success-msg {
+            background: #00ff8844;
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+        
+        .error-msg {
+            background: #ff444444;
+            border: 1px solid #ff4444;
+            color: #ff6666;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔐 MoltAuth</h1>
+        <p>Identity & API Key Management for Agents</p>
+    </div>
+    
+    <div class="container">
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-value" id="agentCount">-</div>
+                <div class="stat-label">Registered Agents</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="keyCount">-</div>
+                <div class="stat-label">Active Keys</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">Register New Agent</h2>
+            </div>
+            <div class="form-group">
+                <label>Agent Name</label>
+                <input type="text" id="agentName" placeholder="e.g., SparkOC">
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="agentDesc" rows="2" placeholder="What does this agent do?"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Capabilities (comma-separated)</label>
+                <input type="text" id="agentCaps" placeholder="e.g., chat, analysis, trading">
+            </div>
+            <button class="btn" onclick="registerAgent()">Register Agent</button>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">Registered Agents</h2>
+                <button class="btn secondary" onclick="loadAgents()">🔄 Refresh</button>
+            </div>
+            <div class="agent-list" id="agentList">
+                <p style="color: #666;">Loading agents...</p>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">Verify API Key</h2>
+            </div>
+            <div class="form-group">
+                <label>API Key</label>
+                <input type="text" id="verifyKey" placeholder="molt_...">
+            </div>
+            <button class="btn" onclick="verifyKey()">Verify</button>
+            <div id="verifyResult" style="margin-top: 1rem;"></div>
+        </div>
+    </div>
+    
+    <!-- Agent Detail Modal -->
+    <div class="modal" id="agentModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalAgentName">Agent Details</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+    
+    <script>
+        let agents = [];
+        let currentAgent = null;
+        
+        async function loadHealth() {
+            try {
+                const res = await fetch('/auth/health');
+                const data = await res.json();
+                document.getElementById('agentCount').textContent = data.agents || 0;
+                document.getElementById('keyCount').textContent = data.activeKeys || 0;
+            } catch (err) {
+                console.error('Failed to load health:', err);
+            }
+        }
+        
+        async function loadAgents() {
+            try {
+                const res = await fetch('/auth/api/agents');
+                agents = await res.json();
+                renderAgents();
+            } catch (err) {
+                console.error('Failed to load agents:', err);
+            }
+        }
+        
+        function renderAgents() {
+            const list = document.getElementById('agentList');
+            if (agents.length === 0) {
+                list.innerHTML = '<p style="color: #666;">No agents registered yet.</p>';
+                return;
+            }
+            
+            list.innerHTML = agents.map(agent => `
+                <div class="agent-item" onclick="showAgentDetail('${agent.id}')">
+                    <div class="agent-header">
+                        <div class="agent-name">${agent.name}</div>
+                        <div class="agent-meta">${new Date(agent.createdAt).toLocaleDateString()}</div>
+                    </div>
+                    <div class="agent-desc">${agent.description || 'No description'}</div>
+                    ${agent.capabilities && agent.capabilities.length > 0 ? `
+                        <div class="capabilities">
+                            ${agent.capabilities.map(c => `<span class="capability-tag">${c}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+        
+        async function registerAgent() {
+            const name = document.getElementById('agentName').value.trim();
+            const description = document.getElementById('agentDesc').value.trim();
+            const capsStr = document.getElementById('agentCaps').value.trim();
+            const capabilities = capsStr ? capsStr.split(',').map(c => c.trim()).filter(c => c) : [];
+            
+            if (!name) {
+                alert('Agent name is required');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/auth/api/agents', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description, capabilities })
+                });
+                
+                if (res.ok) {
+                    document.getElementById('agentName').value = '';
+                    document.getElementById('agentDesc').value = '';
+                    document.getElementById('agentCaps').value = '';
+                    loadAgents();
+                    loadHealth();
+                } else {
+                    const err = await res.json();
+                    alert(err.error || 'Failed to register agent');
+                }
+            } catch (err) {
+                console.error('Failed to register agent:', err);
+                alert('Failed to register agent');
+            }
+        }
+        
+        async function showAgentDetail(agentId) {
+            try {
+                const res = await fetch(`/auth/api/agents/${agentId}`);
+                const agent = await res.json();
+                currentAgent = agent;
+                
+                document.getElementById('modalAgentName').textContent = agent.name;
+                
+                // Load keys for this agent
+                const keysRes = await fetch('/auth/api/agents');
+                const allAgents = await keysRes.json();
+                
+                document.getElementById('modalContent').innerHTML = `
+                    <div class="agent-desc">${agent.description || 'No description'}</div>
+                    ${agent.capabilities && agent.capabilities.length > 0 ? `
+                        <div class="capabilities" style="margin: 1rem 0;">
+                            ${agent.capabilities.map(c => `<span class="capability-tag">${c}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                    <div class="agent-meta" style="margin-bottom: 1rem;">
+                        Created: ${new Date(agent.createdAt).toLocaleString()}<br>
+                        Active Keys: ${agent.activeKeyCount || 0}
+                    </div>
+                    <div style="margin-top: 1.5rem;">
+                        <button class="btn" onclick="generateKey('${agent.id}')">Generate API Key</button>
+                    </div>
+                    <div id="keysList" style="margin-top: 1rem;"></div>
+                `;
+                
+                document.getElementById('agentModal').classList.add('active');
+            } catch (err) {
+                console.error('Failed to load agent:', err);
+            }
+        }
+        
+        async function generateKey(agentId) {
+            const name = prompt('Key name (optional):') || 'Default Key';
+            
+            try {
+                const res = await fetch(`/auth/api/agents/${agentId}/keys`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                
+                if (res.ok) {
+                    const key = await res.json();
+                    const keysList = document.getElementById('keysList');
+                    keysList.innerHTML = `
+                        <div class="success-msg">
+                            ✅ API Key Generated!
+                            <div class="key-value">${key.key}</div>
+                            <small style="color: #999;">Save this key securely. It won't be shown again.</small>
+                        </div>
+                    ` + keysList.innerHTML;
+                    loadHealth();
+                } else {
+                    const err = await res.json();
+                    alert(err.error || 'Failed to generate key');
+                }
+            } catch (err) {
+                console.error('Failed to generate key:', err);
+                alert('Failed to generate key');
+            }
+        }
+        
+        async function verifyKey() {
+            const apiKey = document.getElementById('verifyKey').value.trim();
+            const result = document.getElementById('verifyResult');
+            
+            if (!apiKey) {
+                result.innerHTML = '<div class="error-msg">Please enter an API key</div>';
+                return;
+            }
+            
+            try {
+                const res = await fetch('/auth/api/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ apiKey })
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    result.innerHTML = `
+                        <div class="success-msg">
+                            ✅ Valid API Key<br>
+                            <strong>Agent:</strong> ${data.agent.name}<br>
+                            <strong>Key:</strong> ${data.key.name}<br>
+                            ${data.agent.capabilities.length > 0 ? `
+                                <strong>Capabilities:</strong> ${data.agent.capabilities.join(', ')}
+                            ` : ''}
+                        </div>
+                    `;
+                } else {
+                    const err = await res.json();
+                    result.innerHTML = `<div class="error-msg">❌ ${err.error}</div>`;
+                }
+            } catch (err) {
+                console.error('Failed to verify key:', err);
+                result.innerHTML = '<div class="error-msg">❌ Failed to verify key</div>';
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('agentModal').classList.remove('active');
+        }
+        
+        // Initial load
+        loadHealth();
+        loadAgents();
+        
+        // Refresh stats every 10 seconds
+        setInterval(loadHealth, 10000);
+    </script>
+</body>
+</html>

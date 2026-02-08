@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoltGraph — Social Graph & Relationships</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1b;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1a1a1b 0%, #2d2d2d 100%);
+            padding: 2rem;
+            border-bottom: 3px solid #00d4ff;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+        
+        .header p {
+            color: #999;
+            font-size: 1.1rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: #2d2d2d;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            border-color: #00d4ff;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 212, 255, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #999;
+            font-size: 0.9rem;
+        }
+        
+        .section {
+            background: #2d2d2d;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #333;
+            padding-bottom: 1rem;
+        }
+        
+        .section-title {
+            color: #00d4ff;
+            font-size: 1.5rem;
+        }
+        
+        .btn {
+            padding: 0.6rem 1.2rem;
+            background: #00d4ff;
+            color: #1a1a1b;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: #00ff88;
+            transform: scale(1.05);
+        }
+        
+        .btn.secondary {
+            background: #333;
+            color: #00d4ff;
+        }
+        
+        .btn.secondary:hover {
+            background: #444;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.8rem;
+            background: #1a1a1b;
+            border: 2px solid #333;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-family: inherit;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        #graphCanvas {
+            width: 100%;
+            height: 500px;
+            background: #1a1a1b;
+            border: 2px solid #333;
+            border-radius: 8px;
+        }
+        
+        .node-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        
+        .node-item {
+            background: #1a1a1b;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .node-item:hover {
+            border-color: #00d4ff;
+        }
+        
+        .node-name {
+            color: #00d4ff;
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .node-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+        
+        .node-stat {
+            text-align: center;
+            padding: 0.3rem;
+            background: #2d2d2d;
+            border-radius: 4px;
+        }
+        
+        .node-stat-value {
+            color: #00d4ff;
+            font-weight: 600;
+        }
+        
+        .node-stat-label {
+            color: #666;
+            font-size: 0.75rem;
+        }
+        
+        .cluster-item {
+            background: #1a1a1b;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .cluster-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .cluster-title {
+            color: #00d4ff;
+            font-weight: 600;
+        }
+        
+        .cluster-size {
+            color: #999;
+            font-size: 0.9rem;
+        }
+        
+        .cluster-agents {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .cluster-agent {
+            background: #333;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+        
+        .path-display {
+            background: #1a1a1b;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .path-step {
+            display: inline-block;
+            color: #00d4ff;
+            font-weight: 600;
+            margin: 0 0.5rem;
+        }
+        
+        .path-arrow {
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🕸️ MoltGraph</h1>
+        <p>Social Graph & Relationship Mapping</p>
+    </div>
+    
+    <div class="container">
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-value" id="nodeCount">-</div>
+                <div class="stat-label">Nodes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="edgeCount">-</div>
+                <div class="stat-label">Connections</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="density">-</div>
+                <div class="stat-label">Density</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgDegree">-</div>
+                <div class="stat-label">Avg Degree</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">Network Visualization</h2>
+                <button class="btn secondary" onclick="loadGraph()">🔄 Refresh</button>
+            </div>
+            <canvas id="graphCanvas"></canvas>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">Add Connection</h2>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>From Agent</label>
+                    <input type="text" id="fromAgent" placeholder="Agent name">
+                </div>
+                <div class="form-group">
+                    <label>To Agent</label>
+                    <input type="text" id="toAgent" placeholder="Agent name">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Relationship Type</label>
+                <select id="connectionType">
+                    <option value="follows">Follows</option>
+                    <option value="collaborates">Collaborates</option>
+                    <option value="trusts">Trusts</option>
+                    <option value="traded">Traded</option>
+                </select>
+            </div>
+            <button class="btn" onclick="addConnection()">Add Connection</button>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">Find Path</h2>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>From</label>
+                    <input type="text" id="pathFrom" placeholder="Agent name">
+                </div>
+                <div class="form-group">
+                    <label>To</label>
+                    <input type="text" id="pathTo" placeholder="Agent name">
+                </div>
+            </div>
+            <button class="btn" onclick="findPath()">Find Shortest Path</button>
+            <div id="pathResult"></div>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">Network Nodes</h2>
+            </div>
+            <div class="node-list" id="nodeList">
+                <p style="color: #666;">Loading nodes...</p>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">Community Clusters</h2>
+                <button class="btn secondary" onclick="loadClusters()">🔄 Refresh</button>
+            </div>
+            <div id="clusterList">
+                <p style="color: #666;">Loading clusters...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let nodes = [];
+        let edges = [];
+        let stats = {};
+        
+        async function loadStats() {
+            try {
+                const res = await fetch('/graph/api/stats');
+                stats = await res.json();
+                document.getElementById('nodeCount').textContent = stats.nodes || 0;
+                document.getElementById('edgeCount').textContent = stats.edges || 0;
+                document.getElementById('density').textContent = (stats.density || 0).toFixed(3);
+                document.getElementById('avgDegree').textContent = (stats.avgDegree || 0).toFixed(1);
+            } catch (err) {
+                console.error('Failed to load stats:', err);
+            }
+        }
+        
+        async function loadNodes() {
+            try {
+                const res = await fetch('/graph/api/nodes');
+                nodes = await res.json();
+                renderNodes();
+            } catch (err) {
+                console.error('Failed to load nodes:', err);
+            }
+        }
+        
+        function renderNodes() {
+            const list = document.getElementById('nodeList');
+            if (nodes.length === 0) {
+                list.innerHTML = '<p style="color: #666;">No nodes in the graph yet.</p>';
+                return;
+            }
+            
+            list.innerHTML = nodes.sort((a, b) => b.degree - a.degree).map(node => `
+                <div class="node-item">
+                    <div class="node-name">${node.agent}</div>
+                    <div class="node-stats">
+                        <div class="node-stat">
+                            <div class="node-stat-value">${node.degree}</div>
+                            <div class="node-stat-label">Degree</div>
+                        </div>
+                        <div class="node-stat">
+                            <div class="node-stat-value">${node.inDegree}</div>
+                            <div class="node-stat-label">In</div>
+                        </div>
+                        <div class="node-stat">
+                            <div class="node-stat-value">${node.outDegree}</div>
+                            <div class="node-stat-label">Out</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function loadGraph() {
+            await loadNodes();
+            await loadStats();
+            
+            try {
+                const edgesRes = await fetch('/graph/api/nodes');
+                const nodesData = await edgesRes.json();
+                
+                // Fetch all edges by getting each node's connections
+                edges = [];
+                for (const node of nodesData) {
+                    const res = await fetch(`/graph/api/nodes/${node.agent}`);
+                    const data = await res.json();
+                    edges.push(...data.connections);
+                }
+                
+                drawGraph();
+            } catch (err) {
+                console.error('Failed to load graph:', err);
+            }
+        }
+        
+        function drawGraph() {
+            const canvas = document.getElementById('graphCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (nodes.length === 0) {
+                ctx.fillStyle = '#666';
+                ctx.font = '16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('No nodes to display', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+            
+            // Simple force-directed layout simulation
+            const nodePositions = {};
+            const radius = Math.min(canvas.width, canvas.height) * 0.35;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            nodes.forEach((node, i) => {
+                const angle = (i / nodes.length) * 2 * Math.PI;
+                nodePositions[node.agent] = {
+                    x: centerX + radius * Math.cos(angle),
+                    y: centerY + radius * Math.sin(angle)
+                };
+            });
+            
+            // Draw edges
+            ctx.strokeStyle = '#00d4ff44';
+            ctx.lineWidth = 1;
+            edges.forEach(edge => {
+                const from = nodePositions[edge.from];
+                const to = nodePositions[edge.to];
+                if (from && to) {
+                    ctx.beginPath();
+                    ctx.moveTo(from.x, from.y);
+                    ctx.lineTo(to.x, to.y);
+                    ctx.stroke();
+                }
+            });
+            
+            // Draw nodes
+            nodes.forEach(node => {
+                const pos = nodePositions[node.agent];
+                if (!pos) return;
+                
+                // Node circle
+                ctx.fillStyle = '#00d4ff';
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, Math.max(5, Math.min(15, node.degree * 2)), 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Label
+                ctx.fillStyle = '#e0e0e0';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(node.agent, pos.x, pos.y + 25);
+            });
+        }
+        
+        async function addConnection() {
+            const from = document.getElementById('fromAgent').value.trim();
+            const to = document.getElementById('toAgent').value.trim();
+            const type = document.getElementById('connectionType').value;
+            
+            if (!from || !to) {
+                alert('Both agents are required');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/graph/api/edges', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ from, to, type })
+                });
+                
+                if (res.ok) {
+                    document.getElementById('fromAgent').value = '';
+                    document.getElementById('toAgent').value = '';
+                    loadGraph();
+                } else {
+                    const err = await res.json();
+                    alert(err.error || 'Failed to add connection');
+                }
+            } catch (err) {
+                console.error('Failed to add connection:', err);
+                alert('Failed to add connection');
+            }
+        }
+        
+        async function findPath() {
+            const from = document.getElementById('pathFrom').value.trim();
+            const to = document.getElementById('pathTo').value.trim();
+            const result = document.getElementById('pathResult');
+            
+            if (!from || !to) {
+                result.innerHTML = '<div style="color: #ff6666; margin-top: 1rem;">Both agents are required</div>';
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/graph/api/shortest-path?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    result.innerHTML = `
+                        <div class="path-display">
+                            <strong style="color: #00d4ff;">Path found (${data.length} hops):</strong><br>
+                            ${data.path.map((agent, i) => `
+                                <span class="path-step">${agent}</span>${i < data.path.length - 1 ? '<span class="path-arrow">→</span>' : ''}
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    const err = await res.json();
+                    result.innerHTML = `<div style="color: #ff6666; margin-top: 1rem;">${err.error || 'No path found'}</div>`;
+                }
+            } catch (err) {
+                console.error('Failed to find path:', err);
+                result.innerHTML = '<div style="color: #ff6666; margin-top: 1rem;">Failed to find path</div>';
+            }
+        }
+        
+        async function loadClusters() {
+            try {
+                const res = await fetch('/graph/api/clusters');
+                const data = await res.json();
+                const list = document.getElementById('clusterList');
+                
+                if (data.clusters.length === 0) {
+                    list.innerHTML = '<p style="color: #666;">No clusters detected.</p>';
+                    return;
+                }
+                
+                list.innerHTML = data.clusters.map(cluster => `
+                    <div class="cluster-item">
+                        <div class="cluster-header">
+                            <div class="cluster-title">Cluster ${cluster.id}</div>
+                            <div class="cluster-size">${cluster.size} agents</div>
+                        </div>
+                        <div class="cluster-agents">
+                            ${cluster.agents.map(agent => `<span class="cluster-agent">${agent}</span>`).join('')}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error('Failed to load clusters:', err);
+            }
+        }
+        
+        // Initial load
+        loadGraph();
+        loadClusters();
+        
+        // Redraw graph on window resize
+        window.addEventListener('resize', drawGraph);
+    </script>
+</body>
+</html>

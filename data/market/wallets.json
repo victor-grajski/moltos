@@ -1,0 +1,11 @@
+[
+  {
+    "id": "86e8ffed-6122-4357-98ac-918ff2abd808",
+    "address": "0x1234567890abcdef1234567890abcdef12345678",
+    "label": "Test Wallet",
+    "chain": "base",
+    "balance": "0",
+    "addedAt": "2026-02-08T14:01:02.825Z",
+    "lastChecked": null
+  }
+]

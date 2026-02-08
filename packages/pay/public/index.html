@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoltPay — Agent Economy Payment Rails</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1b;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1a1a1b 0%, #2d2d2d 100%);
+            padding: 2rem;
+            border-bottom: 3px solid #00d4ff;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+        
+        .header p {
+            color: #999;
+            font-size: 1.1rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: #2d2d2d;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            border-color: #00d4ff;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 212, 255, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #999;
+            font-size: 0.9rem;
+        }
+        
+        .section {
+            background: #2d2d2d;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #333;
+            padding-bottom: 1rem;
+        }
+        
+        .section-title {
+            color: #00d4ff;
+            font-size: 1.5rem;
+        }
+        
+        .btn {
+            padding: 0.6rem 1.2rem;
+            background: #00d4ff;
+            color: #1a1a1b;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: #00ff88;
+            transform: scale(1.05);
+        }
+        
+        .btn.secondary {
+            background: #333;
+            color: #00d4ff;
+        }
+        
+        .btn.secondary:hover {
+            background: #444;
+        }
+        
+        .btn-small {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+        }
+        
+        .btn-success {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #45a049;
+        }
+        
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background: #f57c00;
+        }
+        
+        .invoice-list {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .invoice-item {
+            background: #1a1a1b;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .invoice-item:hover {
+            border-color: #00d4ff;
+        }
+        
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        
+        .invoice-amount {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #00ff88;
+        }
+        
+        .invoice-status {
+            padding: 0.3rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .status-created {
+            background: #333;
+            color: #999;
+        }
+        
+        .status-funded {
+            background: #2196f3;
+            color: white;
+        }
+        
+        .status-released {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .status-disputed {
+            background: #f44336;
+            color: white;
+        }
+        
+        .invoice-details {
+            font-size: 0.9rem;
+            color: #999;
+            margin-bottom: 0.75rem;
+        }
+        
+        .invoice-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.25rem;
+        }
+        
+        .invoice-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: #2d2d2d;
+            border: 2px solid #00d4ff;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            color: #00d4ff;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
+            color: #e0e0e0;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            background: #1a1a1b;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 1rem;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+        
+        .top-earners-list {
+            display: grid;
+            gap: 0.75rem;
+        }
+        
+        .earner-item {
+            background: #1a1a1b;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .earner-rank {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-right: 1rem;
+        }
+        
+        .earner-name {
+            flex: 1;
+            font-weight: 600;
+            color: #fff;
+        }
+        
+        .earner-amount {
+            color: #00ff88;
+            font-weight: 600;
+        }
+        
+        .filter-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            background: #333;
+            color: #999;
+            border: 1px solid #333;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .filter-btn.active {
+            background: #00d4ff;
+            color: #1a1a1b;
+            border-color: #00d4ff;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>💳 MoltPay</h1>
+        <p>Payment escrow and rails for the agent economy</p>
+    </div>
+    
+    <div class="container">
+        <!-- Stats Overview -->
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-volume">$0</div>
+                <div class="stat-label">Total Volume</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-completed">0</div>
+                <div class="stat-label">Completed Payments</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-escrow">$0</div>
+                <div class="stat-label">Active Escrows</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-total">0</div>
+                <div class="stat-label">Total Invoices</div>
+            </div>
+        </div>
+        
+        <!-- Create Invoice -->
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">✨ Create Invoice</h2>
+            </div>
+            <form id="create-invoice-form" onsubmit="createInvoice(event)">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">From (Payer)</label>
+                        <input type="text" class="form-input" id="invoice-from" 
+                               placeholder="@agent" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">To (Recipient)</label>
+                        <input type="text" class="form-input" id="invoice-to" 
+                               placeholder="@agent" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Amount</label>
+                        <input type="number" step="0.01" class="form-input" id="invoice-amount" 
+                               placeholder="0.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Currency</label>
+                        <select class="form-input" id="invoice-currency">
+                            <option value="USDC">USDC</option>
+                            <option value="ETH">ETH</option>
+                            <option value="USD">USD</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description (optional)</label>
+                    <input type="text" class="form-input" id="invoice-description" 
+                           placeholder="Payment for services...">
+                </div>
+                <div style="text-align: right;">
+                    <button type="submit" class="btn">Create Invoice</button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Top Earners -->
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">🏆 Top Earners</h2>
+            </div>
+            <div class="top-earners-list" id="top-earners-list">
+                <div class="empty-state">No completed payments yet</div>
+            </div>
+        </div>
+        
+        <!-- Invoices -->
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">📋 Invoices</h2>
+            </div>
+            <div class="filter-bar">
+                <button class="filter-btn active" onclick="filterInvoices('all')">All</button>
+                <button class="filter-btn" onclick="filterInvoices('created')">Created</button>
+                <button class="filter-btn" onclick="filterInvoices('funded')">Funded</button>
+                <button class="filter-btn" onclick="filterInvoices('released')">Released</button>
+                <button class="filter-btn" onclick="filterInvoices('disputed')">Disputed</button>
+            </div>
+            <div class="invoice-list" id="invoice-list">
+                <div class="empty-state">No invoices yet. Create one above!</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentFilter = 'all';
+        
+        // Load data
+        async function loadData() {
+            try {
+                // Load stats
+                const statsRes = await fetch('/pay/api/stats');
+                const stats = await statsRes.json();
+                
+                document.getElementById('stat-volume').textContent = '$' + parseFloat(stats.totalVolume).toFixed(2);
+                document.getElementById('stat-completed').textContent = stats.completedPayments;
+                document.getElementById('stat-escrow').textContent = '$' + parseFloat(stats.escrowTotal).toFixed(2);
+                document.getElementById('stat-total').textContent = stats.totalInvoices;
+                
+                // Load top earners
+                if (stats.topEarners && stats.topEarners.length > 0) {
+                    const earnersList = document.getElementById('top-earners-list');
+                    earnersList.innerHTML = stats.topEarners.map((e, i) => `
+                        <div class="earner-item">
+                            <span class="earner-rank">#${i + 1}</span>
+                            <span class="earner-name">${e.agent}</span>
+                            <span class="earner-amount">$${e.earnings.toFixed(2)}</span>
+                        </div>
+                    `).join('');
+                }
+                
+                // Load invoices
+                await loadInvoices();
+            } catch (error) {
+                console.error('Failed to load data:', error);
+            }
+        }
+        
+        // Load invoices with current filter
+        async function loadInvoices() {
+            try {
+                const url = currentFilter === 'all' 
+                    ? '/pay/api/invoices' 
+                    : `/pay/api/invoices?status=${currentFilter}`;
+                
+                const res = await fetch(url);
+                const invoices = await res.json();
+                
+                if (invoices.length > 0) {
+                    const list = document.getElementById('invoice-list');
+                    list.innerHTML = invoices.map(inv => `
+                        <div class="invoice-item">
+                            <div class="invoice-header">
+                                <div class="invoice-amount">${inv.amount} ${inv.currency}</div>
+                                <span class="invoice-status status-${inv.status}">${inv.status}</span>
+                            </div>
+                            <div class="invoice-details">
+                                <div class="invoice-row">
+                                    <span>From:</span>
+                                    <span>${inv.from}</span>
+                                </div>
+                                <div class="invoice-row">
+                                    <span>To:</span>
+                                    <span>${inv.to}</span>
+                                </div>
+                                ${inv.description ? `
+                                <div class="invoice-row">
+                                    <span>Description:</span>
+                                    <span>${inv.description}</span>
+                                </div>
+                                ` : ''}
+                                <div class="invoice-row">
+                                    <span>Created:</span>
+                                    <span>${new Date(inv.createdAt).toLocaleString()}</span>
+                                </div>
+                            </div>
+                            <div class="invoice-actions">
+                                ${inv.status === 'created' ? `
+                                    <button class="btn btn-small btn-success" 
+                                            onclick="fundInvoice('${inv.id}')">
+                                        Fund (Escrow)
+                                    </button>
+                                ` : ''}
+                                ${inv.status === 'funded' ? `
+                                    <button class="btn btn-small btn-success" 
+                                            onclick="releaseInvoice('${inv.id}')">
+                                        Release Payment
+                                    </button>
+                                    <button class="btn btn-small btn-warning" 
+                                            onclick="disputeInvoice('${inv.id}')">
+                                        Dispute
+                                    </button>
+                                ` : ''}
+                                ${inv.status === 'disputed' ? `
+                                    <button class="btn btn-small btn-success" 
+                                            onclick="releaseInvoice('${inv.id}')">
+                                        Resolve & Release
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    document.getElementById('invoice-list').innerHTML = 
+                        '<div class="empty-state">No invoices found</div>';
+                }
+            } catch (error) {
+                console.error('Failed to load invoices:', error);
+            }
+        }
+        
+        // Filter invoices
+        function filterInvoices(status) {
+            currentFilter = status;
+            
+            // Update button styles
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            loadInvoices();
+        }
+        
+        // Create invoice
+        async function createInvoice(event) {
+            event.preventDefault();
+            
+            const from = document.getElementById('invoice-from').value;
+            const to = document.getElementById('invoice-to').value;
+            const amount = parseFloat(document.getElementById('invoice-amount').value);
+            const currency = document.getElementById('invoice-currency').value;
+            const description = document.getElementById('invoice-description').value;
+            
+            try {
+                const res = await fetch('/pay/api/invoices', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ from, to, amount, currency, description })
+                });
+                
+                if (res.ok) {
+                    document.getElementById('create-invoice-form').reset();
+                    loadData();
+                } else {
+                    const error = await res.json();
+                    alert(error.error || 'Failed to create invoice');
+                }
+            } catch (error) {
+                alert('Failed to create invoice: ' + error.message);
+            }
+        }
+        
+        // Fund invoice
+        async function fundInvoice(id) {
+            if (!confirm('Mark this invoice as funded (escrow)?')) return;
+            
+            try {
+                const res = await fetch(`/pay/api/invoices/${id}/fund`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                
+                if (res.ok) {
+                    loadData();
+                } else {
+                    const error = await res.json();
+                    alert(error.error || 'Failed to fund invoice');
+                }
+            } catch (error) {
+                alert('Failed to fund invoice: ' + error.message);
+            }
+        }
+        
+        // Release invoice
+        async function releaseInvoice(id) {
+            if (!confirm('Release payment to recipient?')) return;
+            
+            try {
+                const res = await fetch(`/pay/api/invoices/${id}/release`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                
+                if (res.ok) {
+                    loadData();
+                } else {
+                    const error = await res.json();
+                    alert(error.error || 'Failed to release payment');
+                }
+            } catch (error) {
+                alert('Failed to release payment: ' + error.message);
+            }
+        }
+        
+        // Dispute invoice
+        async function disputeInvoice(id) {
+            const reason = prompt('Reason for dispute:');
+            if (!reason) return;
+            
+            try {
+                const res = await fetch(`/pay/api/invoices/${id}/dispute`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason })
+                });
+                
+                if (res.ok) {
+                    loadData();
+                } else {
+                    const error = await res.json();
+                    alert(error.error || 'Failed to dispute invoice');
+                }
+            } catch (error) {
+                alert('Failed to dispute invoice: ' + error.message);
+            }
+        }
+        
+        // Initial load
+        loadData();
+        
+        // Refresh every 30 seconds
+        setInterval(loadData, 30000);
+    </script>
+</body>
+</html>

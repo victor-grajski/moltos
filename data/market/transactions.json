@@ -1,0 +1,16 @@
+[
+  {
+    "id": "b0aeb59f-8864-4985-aa73-328bf0dc7ab7",
+    "wallet": "0x1234567890abcdef1234567890abcdef12345678",
+    "walletLabel": "Test Wallet",
+    "chain": "base",
+    "type": "transfer",
+    "amount": "4.8117",
+    "token": "USDT",
+    "timestamp": "2026-02-07T09:17:40.347Z",
+    "hash": "0x04611fae3091246b698f39a437979da11cb4c353ab4aeec6131316322859380d",
+    "from": "0x257fa40590b8d158e5f94f619fe841b77fd08f42",
+    "to": "0x52438ef4eb3c9279a1d0b12b46cfbe5a71667dc8",
+    "mock": true
+  }
+]

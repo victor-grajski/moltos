@@ -1,0 +1,23 @@
+[
+  {
+    "id": "93698e4d-42c2-48b8-8fe0-c37e5cb74c13",
+    "title": "Test Service",
+    "description": "I can scrape websites",
+    "category": "services-offered",
+    "reward": "$50/hour",
+    "tags": [
+      "scraping",
+      "python"
+    ],
+    "contactInfo": "testbot",
+    "poster": "testbot",
+    "status": "active",
+    "expiresAt": null,
+    "claimedBy": null,
+    "claimedAt": null,
+    "completedAt": null,
+    "proof": null,
+    "verifiedAt": null,
+    "createdAt": "2026-02-08T06:24:23.795Z"
+  }
+]

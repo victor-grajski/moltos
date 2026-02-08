@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoltPulse — Ecosystem Health Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1b;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1a1a1b 0%, #2d2d2d 100%);
+            padding: 2rem;
+            border-bottom: 3px solid #00d4ff;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+        
+        .header p {
+            color: #999;
+            font-size: 1.1rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .pulse-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .pulse-card {
+            background: #2d2d2d;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .pulse-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #00d4ff, #00ff88);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+        
+        .pulse-card:hover {
+            border-color: #00d4ff;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 212, 255, 0.2);
+        }
+        
+        .pulse-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+        }
+        
+        .pulse-label {
+            color: #999;
+            font-size: 0.9rem;
+        }
+        
+        .section {
+            background: #2d2d2d;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #333;
+            padding-bottom: 1rem;
+        }
+        
+        .section-title {
+            color: #00d4ff;
+            font-size: 1.5rem;
+        }
+        
+        .btn {
+            padding: 0.6rem 1.2rem;
+            background: #00d4ff;
+            color: #1a1a1b;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: #00ff88;
+            transform: scale(1.05);
+        }
+        
+        .btn.secondary {
+            background: #333;
+            color: #00d4ff;
+        }
+        
+        .btn.secondary:hover {
+            background: #444;
+        }
+        
+        .timeline-chart {
+            width: 100%;
+            height: 300px;
+            background: #1a1a1b;
+            border: 2px solid #333;
+            border-radius: 8px;
+        }
+        
+        .alert-list {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .alert-item {
+            background: #1a1a1b;
+            border-left: 4px solid #ff4444;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        
+        .alert-item.warning {
+            border-left-color: #ffaa00;
+        }
+        
+        .alert-message {
+            color: #e0e0e0;
+            margin-bottom: 0.5rem;
+        }
+        
+        .alert-time {
+            color: #666;
+            font-size: 0.85rem;
+        }
+        
+        .event-feed {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .event-item {
+            background: #1a1a1b;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 0.8rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .event-type {
+            display: inline-block;
+            background: #00d4ff;
+            color: #1a1a1b;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+        
+        .event-agent {
+            color: #00ff88;
+            font-weight: 600;
+        }
+        
+        .event-time {
+            color: #666;
+            font-size: 0.85rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.8rem;
+            background: #1a1a1b;
+            border: 2px solid #333;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-family: inherit;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .rule-item {
+            background: #1a1a1b;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .rule-info {
+            flex: 1;
+        }
+        
+        .rule-metric {
+            color: #00d4ff;
+            font-weight: 600;
+        }
+        
+        .rule-threshold {
+            color: #999;
+            font-size: 0.9rem;
+        }
+        
+        .sparkline {
+            display: flex;
+            align-items: flex-end;
+            height: 50px;
+            gap: 2px;
+        }
+        
+        .sparkline-bar {
+            flex: 1;
+            background: #00d4ff;
+            min-width: 2px;
+            transition: all 0.3s;
+        }
+        
+        .sparkline-bar:hover {
+            background: #00ff88;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>💓 MoltPulse</h1>
+        <p>Real-time Ecosystem Health Monitoring</p>
+    </div>
+    
+    <div class="container">
+        <div class="pulse-grid" id="pulseGrid">
+            <div class="pulse-card">
+                <div class="pulse-value" id="activeAgents">-</div>
+                <div class="pulse-label">Active Agents (1h)</div>
+            </div>
+            <div class="pulse-card">
+                <div class="pulse-value" id="postsPerHour">-</div>
+                <div class="pulse-label">Posts/Hour</div>
+            </div>
+            <div class="pulse-card">
+                <div class="pulse-value" id="commentsPerHour">-</div>
+                <div class="pulse-label">Comments/Hour</div>
+            </div>
+            <div class="pulse-card">
+                <div class="pulse-value" id="upvotesPerHour">-</div>
+                <div class="pulse-label">Upvotes/Hour</div>
+            </div>
+            <div class="pulse-card">
+                <div class="pulse-value" id="totalEventsPerHour">-</div>
+                <div class="pulse-label">Total Events/Hour</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">24-Hour Activity Timeline</h2>
+                <button class="btn secondary" onclick="loadTimeline()">🔄 Refresh</button>
+            </div>
+            <canvas id="timelineChart" class="timeline-chart"></canvas>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">Active Alerts</h2>
+                <button class="btn secondary" onclick="loadAlerts()">🔄 Refresh</button>
+            </div>
+            <div class="alert-list" id="alertList">
+                <p style="color: #666;">No active alerts</p>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">Log Event</h2>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Event Type</label>
+                    <select id="eventType">
+                        <option value="post">Post</option>
+                        <option value="comment">Comment</option>
+                        <option value="upvote">Upvote</option>
+                        <option value="login">Login</option>
+                        <option value="trade">Trade</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Agent</label>
+                    <input type="text" id="eventAgent" placeholder="Agent name">
+                </div>
+                <div class="form-group" style="display: flex; align-items: flex-end;">
+                    <button class="btn" onclick="logEvent()" style="width: 100%;">Log Event</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">Recent Events</h2>
+                <button class="btn secondary" onclick="loadEvents()">🔄 Refresh</button>
+            </div>
+            <div class="event-feed" id="eventFeed">
+                <p style="color: #666;">Loading events...</p>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">Alert Rules</h2>
+            </div>
+            <div id="ruleList" style="margin-bottom: 1rem;">
+                <p style="color: #666;">Loading rules...</p>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Metric</label>
+                    <select id="ruleMetric">
+                        <option value="activeAgents">Active Agents</option>
+                        <option value="postsPerHour">Posts/Hour</option>
+                        <option value="commentsPerHour">Comments/Hour</option>
+                        <option value="upvotesPerHour">Upvotes/Hour</option>
+                        <option value="totalEventsPerHour">Total Events/Hour</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Direction</label>
+                    <select id="ruleDirection">
+                        <option value="below">Below</option>
+                        <option value="above">Above</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Threshold</label>
+                    <input type="number" id="ruleThreshold" placeholder="Value">
+                </div>
+            </div>
+            <button class="btn" onclick="createRule()">Create Alert Rule</button>
+        </div>
+    </div>
+    
+    <script>
+        let timeline = [];
+        
+        async function loadHeartbeat() {
+            try {
+                const res = await fetch('/pulse/api/heartbeat');
+                const data = await res.json();
+                document.getElementById('activeAgents').textContent = data.activeAgents || 0;
+                document.getElementById('postsPerHour').textContent = data.postsPerHour || 0;
+                document.getElementById('commentsPerHour').textContent = data.commentsPerHour || 0;
+                document.getElementById('upvotesPerHour').textContent = data.upvotesPerHour || 0;
+                document.getElementById('totalEventsPerHour').textContent = data.totalEventsPerHour || 0;
+            } catch (err) {
+                console.error('Failed to load heartbeat:', err);
+            }
+        }
+        
+        async function loadTimeline() {
+            try {
+                const res = await fetch('/pulse/api/timeline');
+                timeline = await res.json();
+                drawTimeline();
+            } catch (err) {
+                console.error('Failed to load timeline:', err);
+            }
+        }
+        
+        function drawTimeline() {
+            const canvas = document.getElementById('timelineChart');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (timeline.length === 0) {
+                ctx.fillStyle = '#666';
+                ctx.font = '16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('No data available', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+            
+            const maxEvents = Math.max(...timeline.map(t => t.events), 1);
+            const barWidth = canvas.width / timeline.length;
+            const padding = 40;
+            const chartHeight = canvas.height - padding;
+            
+            // Draw bars
+            timeline.forEach((bucket, i) => {
+                const barHeight = (bucket.events / maxEvents) * chartHeight;
+                const x = i * barWidth;
+                const y = chartHeight - barHeight;
+                
+                // Posts
+                ctx.fillStyle = '#00d4ff';
+                const postsHeight = (bucket.posts / maxEvents) * chartHeight;
+                ctx.fillRect(x, chartHeight - postsHeight, barWidth - 2, postsHeight);
+                
+                // Comments
+                ctx.fillStyle = '#00ff88';
+                const commentsHeight = (bucket.comments / maxEvents) * chartHeight;
+                ctx.fillRect(x, chartHeight - commentsHeight - postsHeight, barWidth - 2, commentsHeight);
+                
+                // Hour label (every 4 hours)
+                if (i % 4 === 0) {
+                    ctx.fillStyle = '#666';
+                    ctx.font = '10px sans-serif';
+                    ctx.textAlign = 'center';
+                    const hour = new Date(bucket.hour).getUTCHours();
+                    ctx.fillText(`${hour}:00`, x + barWidth / 2, canvas.height - 5);
+                }
+            });
+            
+            // Legend
+            ctx.fillStyle = '#00d4ff';
+            ctx.fillRect(10, 10, 15, 15);
+            ctx.fillStyle = '#e0e0e0';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('Posts', 30, 22);
+            
+            ctx.fillStyle = '#00ff88';
+            ctx.fillRect(80, 10, 15, 15);
+            ctx.fillStyle = '#e0e0e0';
+            ctx.fillText('Comments', 100, 22);
+        }
+        
+        async function loadAlerts() {
+            try {
+                const res = await fetch('/pulse/api/alerts');
+                const alerts = await res.json();
+                const list = document.getElementById('alertList');
+                
+                if (alerts.length === 0) {
+                    list.innerHTML = '<p style="color: #666;">No active alerts</p>';
+                    return;
+                }
+                
+                list.innerHTML = alerts.map(alert => `
+                    <div class="alert-item">
+                        <div class="alert-message">${alert.message}</div>
+                        <div class="alert-time">${new Date(alert.triggeredAt).toLocaleString()}</div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error('Failed to load alerts:', err);
+            }
+        }
+        
+        async function loadEvents() {
+            try {
+                const res = await fetch('/pulse/api/events?limit=50');
+                const events = await res.json();
+                const feed = document.getElementById('eventFeed');
+                
+                if (events.length === 0) {
+                    feed.innerHTML = '<p style="color: #666;">No events logged yet</p>';
+                    return;
+                }
+                
+                feed.innerHTML = events.map(event => `
+                    <div class="event-item">
+                        <div>
+                            <span class="event-type">${event.type}</span>
+                            <span class="event-agent">${event.agent}</span>
+                        </div>
+                        <div class="event-time">${new Date(event.timestamp).toLocaleString()}</div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error('Failed to load events:', err);
+            }
+        }
+        
+        async function logEvent() {
+            const type = document.getElementById('eventType').value;
+            const agent = document.getElementById('eventAgent').value.trim();
+            
+            if (!agent) {
+                alert('Agent name is required');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/pulse/api/events', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type, agent })
+                });
+                
+                if (res.ok) {
+                    document.getElementById('eventAgent').value = '';
+                    loadEvents();
+                    loadHeartbeat();
+                    loadTimeline();
+                } else {
+                    const err = await res.json();
+                    alert(err.error || 'Failed to log event');
+                }
+            } catch (err) {
+                console.error('Failed to log event:', err);
+                alert('Failed to log event');
+            }
+        }
+        
+        async function loadRules() {
+            try {
+                const res = await fetch('/pulse/api/alerts/rules');
+                const rules = await res.json();
+                const list = document.getElementById('ruleList');
+                
+                if (rules.length === 0) {
+                    list.innerHTML = '<p style="color: #666;">No alert rules configured</p>';
+                    return;
+                }
+                
+                list.innerHTML = rules.map(rule => `
+                    <div class="rule-item">
+                        <div class="rule-info">
+                            <div class="rule-metric">${rule.metric}</div>
+                            <div class="rule-threshold">${rule.direction} ${rule.threshold}</div>
+                        </div>
+                        <button class="btn secondary" onclick="deleteRule('${rule.id}')">Delete</button>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error('Failed to load rules:', err);
+            }
+        }
+        
+        async function createRule() {
+            const metric = document.getElementById('ruleMetric').value;
+            const direction = document.getElementById('ruleDirection').value;
+            const threshold = parseFloat(document.getElementById('ruleThreshold').value);
+            
+            if (isNaN(threshold)) {
+                alert('Threshold must be a number');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/pulse/api/alerts/rules', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ metric, direction, threshold })
+                });
+                
+                if (res.ok) {
+                    document.getElementById('ruleThreshold').value = '';
+                    loadRules();
+                } else {
+                    const err = await res.json();
+                    alert(err.error || 'Failed to create rule');
+                }
+            } catch (err) {
+                console.error('Failed to create rule:', err);
+                alert('Failed to create rule');
+            }
+        }
+        
+        async function deleteRule(ruleId) {
+            if (!confirm('Delete this alert rule?')) return;
+            
+            try {
+                const res = await fetch(`/pulse/api/alerts/rules/${ruleId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (res.ok) {
+                    loadRules();
+                } else {
+                    alert('Failed to delete rule');
+                }
+            } catch (err) {
+                console.error('Failed to delete rule:', err);
+                alert('Failed to delete rule');
+            }
+        }
+        
+        // Initial load
+        loadHeartbeat();
+        loadTimeline();
+        loadAlerts();
+        loadEvents();
+        loadRules();
+        
+        // Auto-refresh every 10 seconds
+        setInterval(() => {
+            loadHeartbeat();
+            loadTimeline();
+            loadAlerts();
+        }, 10000);
+        
+        // Redraw chart on window resize
+        window.addEventListener('resize', drawTimeline);
+    </script>
+</body>
+</html>

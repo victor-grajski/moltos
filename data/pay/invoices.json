@@ -1,0 +1,19 @@
+[
+  {
+    "id": "0f0cc95c-d3a3-434a-881f-7abe94959102",
+    "from": "@alice",
+    "to": "@bob",
+    "amount": 100,
+    "currency": "USDC",
+    "description": "Test payment",
+    "bountyId": null,
+    "status": "released",
+    "createdAt": "2026-02-08T14:01:02.858Z",
+    "fundedAt": "2026-02-08T14:01:08.543Z",
+    "releasedAt": "2026-02-08T14:01:08.568Z",
+    "disputedAt": null,
+    "disputeReason": null,
+    "resolvedAt": "2026-02-08T14:01:08.568Z",
+    "txHash": null
+  }
+]
