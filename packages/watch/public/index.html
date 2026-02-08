@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoltWatch — Agent Activity Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1b;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1a1a1b 0%, #2d2d2d 100%);
+            padding: 2rem;
+            border-bottom: 3px solid #ff6b35;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            color: #ff6b35;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+        }
+        
+        .header p {
+            color: #999;
+            font-size: 1.1rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .status-card {
+            background: #2d2d2d;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .status-card:hover {
+            border-color: #ff6b35;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(255, 107, 53, 0.2);
+        }
+        
+        .status-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #ff6b35;
+            margin-bottom: 0.5rem;
+        }
+        
+        .status-label {
+            color: #999;
+            font-size: 0.9rem;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #1a1a1b;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b35, #ffa500);
+            transition: width 0.5s ease;
+            border-radius: 4px;
+        }
+        
+        .section {
+            background: #2d2d2d;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            color: #ff6b35;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .badge-fresh { background: #00ff88; color: #000; }
+        .badge-medium { background: #ffa500; color: #000; }
+        .badge-high { background: #ff6b35; color: #fff; }
+        .badge-critical { background: #ff3333; color: #fff; }
+        
+        .agent-list {
+            display: grid;
+            gap: 0.75rem;
+        }
+        
+        .agent-item {
+            background: #1a1a1b;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+        
+        .agent-item:hover {
+            border-color: #ff6b35;
+            background: #252525;
+        }
+        
+        .agent-name {
+            font-weight: bold;
+            color: #00d4ff;
+        }
+        
+        .agent-staleness {
+            color: #999;
+            font-size: 0.9rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+        }
+        
+        .scrape-status {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: #1a1a1b;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        
+        .scrape-status.active {
+            border: 2px solid #00ff88;
+            animation: pulse-border 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-border {
+            0%, 100% { border-color: #00ff88; }
+            50% { border-color: #00ff88aa; }
+        }
+        
+        .scrape-status-icon {
+            font-size: 2rem;
+        }
+        
+        .scrape-info {
+            flex: 1;
+        }
+        
+        .scrape-phase {
+            font-size: 0.9rem;
+            color: #999;
+            text-transform: capitalize;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #333;
+        }
+        
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease;
+            color: #999;
+        }
+        
+        .tab:hover {
+            color: #ff6b35;
+        }
+        
+        .tab.active {
+            color: #ff6b35;
+            border-bottom-color: #ff6b35;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .filter-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .filter-button {
+            padding: 0.5rem 1rem;
+            background: #1a1a1b;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: #e0e0e0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .filter-button:hover {
+            border-color: #ff6b35;
+            background: #252525;
+        }
+        
+        .filter-button.active {
+            background: #ff6b35;
+            border-color: #ff6b35;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 MoltWatch</h1>
+        <p>Real-time agent activity and freshness tracking</p>
+    </div>
+    
+    <div class="container">
+        <!-- Status Overview -->
+        <div class="status-grid">
+            <div class="status-card">
+                <div class="status-value" id="totalAgents">-</div>
+                <div class="status-label">Total Agents Tracked</div>
+            </div>
+            <div class="status-card">
+                <div class="status-value" id="staleAgents">-</div>
+                <div class="status-label">Stale Agents (&gt;24h)</div>
+            </div>
+            <div class="status-card">
+                <div class="status-value" id="stalePercentage">-</div>
+                <div class="status-label">Staleness Percentage</div>
+            </div>
+            <div class="status-card">
+                <div class="status-value" id="lastScrape">-</div>
+                <div class="status-label">Last Scrape</div>
+            </div>
+        </div>
+        
+        <!-- Scrape Status -->
+        <div class="section">
+            <div class="section-title">📊 Scrape Status</div>
+            <div id="scrapeStatus" class="scrape-status">
+                <div class="scrape-status-icon">⏳</div>
+                <div class="scrape-info">
+                    <div><strong>Status:</strong> <span id="scrapePhase">Loading...</span></div>
+                    <div class="scrape-phase" id="scrapeDetail">Checking scrape status...</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="scrapeProgress" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Staleness Breakdown -->
+        <div class="section">
+            <div class="section-title">🎯 Staleness Breakdown</div>
+            <div class="status-grid">
+                <div class="status-card">
+                    <div class="status-value" style="color: #00ff88;" id="freshCount">-</div>
+                    <div class="status-label">Fresh (&lt;24h)</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-value" style="color: #ffa500;" id="mediumCount">-</div>
+                    <div class="status-label">Medium (1-3 days)</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-value" style="color: #ff6b35;" id="highCount">-</div>
+                    <div class="status-label">High (3-7 days)</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-value" style="color: #ff3333;" id="criticalCount">-</div>
+                    <div class="status-label">Critical (&gt;7 days)</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Agent Details -->
+        <div class="section">
+            <div class="section-title">👥 Agent Freshness</div>
+            
+            <div class="filter-bar">
+                <div class="filter-button active" data-level="all">All Agents</div>
+                <div class="filter-button" data-level="medium">Medium</div>
+                <div class="filter-button" data-level="high">High</div>
+                <div class="filter-button" data-level="critical">Critical</div>
+            </div>
+            
+            <div id="agentList" class="agent-list">
+                <div class="loading">Loading agents...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentLevel = 'all';
+        
+        // Format time ago
+        function timeAgo(timestamp) {
+            const now = new Date();
+            const past = new Date(timestamp);
+            const diffMs = now - past;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            return `${diffDays}d ago`;
+        }
+        
+        // Fetch scrape status
+        async function fetchScrapeStatus() {
+            try {
+                const res = await fetch('/watch/api/scrape/status');
+                const data = await res.json();
+                
+                const statusEl = document.getElementById('scrapeStatus');
+                const phaseEl = document.getElementById('scrapePhase');
+                const detailEl = document.getElementById('scrapeDetail');
+                const progressEl = document.getElementById('scrapeProgress');
+                
+                if (data.scrapeInProgress) {
+                    statusEl.classList.add('active');
+                    statusEl.querySelector('.scrape-status-icon').textContent = '🔄';
+                    phaseEl.textContent = `Scraping (${data.phase})`;
+                    detailEl.textContent = `${data.itemsCompleted} / ${data.itemsTotal} items (${data.percentComplete}%)`;
+                    progressEl.style.width = `${data.percentComplete}%`;
+                } else {
+                    statusEl.classList.remove('active');
+                    statusEl.querySelector('.scrape-status-icon').textContent = '✅';
+                    phaseEl.textContent = 'Idle';
+                    detailEl.textContent = data.lastScrape ? `Last scrape: ${timeAgo(data.lastScrape)}` : 'No scrapes yet';
+                    progressEl.style.width = '100%';
+                }
+                
+                document.getElementById('lastScrape').textContent = data.lastScrape ? timeAgo(data.lastScrape) : 'Never';
+            } catch (error) {
+                console.error('Error fetching scrape status:', error);
+            }
+        }
+        
+        // Fetch staleness data
+        async function fetchStaleness(level = null) {
+            try {
+                const url = level && level !== 'all' 
+                    ? `/watch/api/staleness?level=${level}&limit=100`
+                    : '/watch/api/staleness?limit=100';
+                    
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                // Update summary stats
+                document.getElementById('totalAgents').textContent = data.summary.total_agents.toLocaleString();
+                document.getElementById('staleAgents').textContent = data.summary.stale_agents.toLocaleString();
+                document.getElementById('stalePercentage').textContent = `${data.summary.stale_percentage}%`;
+                
+                // Update breakdown
+                document.getElementById('freshCount').textContent = data.summary.staleness_levels.fresh.toLocaleString();
+                document.getElementById('mediumCount').textContent = data.summary.staleness_levels.medium.toLocaleString();
+                document.getElementById('highCount').textContent = data.summary.staleness_levels.high.toLocaleString();
+                document.getElementById('criticalCount').textContent = data.summary.staleness_levels.critical.toLocaleString();
+                
+                // Update agent list
+                const agentListEl = document.getElementById('agentList');
+                if (data.agents.length === 0) {
+                    agentListEl.innerHTML = '<div class="loading">No agents found</div>';
+                    return;
+                }
+                
+                agentListEl.innerHTML = data.agents.map(agent => {
+                    const badgeClass = `badge-${agent.staleness_level}`;
+                    return `
+                        <div class="agent-item">
+                            <div>
+                                <div class="agent-name">@${agent.name}</div>
+                                <div class="agent-staleness">Last updated: ${timeAgo(agent.last_updated)}</div>
+                            </div>
+                            <span class="badge ${badgeClass}">${agent.staleness_level}</span>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error fetching staleness:', error);
+                document.getElementById('agentList').innerHTML = 
+                    '<div class="loading">Error loading agents</div>';
+            }
+        }
+        
+        // Filter buttons
+        document.querySelectorAll('.filter-button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const level = btn.dataset.level;
+                currentLevel = level;
+                fetchStaleness(level);
+            });
+        });
+        
+        // Initial load
+        fetchScrapeStatus();
+        fetchStaleness();
+        
+        // Refresh every 10 seconds
+        setInterval(() => {
+            fetchScrapeStatus();
+            fetchStaleness(currentLevel);
+        }, 10000);
+    </script>
+</body>
+</html>

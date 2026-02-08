@@ -3,6 +3,9 @@ const path = require('path');
 const fs = require('fs');
 const router = express.Router();
 
+// Serve static files from public directory
+router.use(express.static(path.join(__dirname, 'public')));
+
 // Import analytics modules
 const { 
   loadOrBuildGraph, 
@@ -37,6 +40,15 @@ const {
   analyzeWeeklyData,
   formatWeeklyRollup 
 } = require('./rollup.js');
+
+const {
+  getStalenessReport,
+  getAgentFreshness
+} = require('./staleness.js');
+
+const {
+  getScrapeProgress
+} = require('./scraper.js');
 
 const DATA_DIR = path.join(__dirname, '../../data/watch');
 
@@ -299,20 +311,87 @@ router.get('/api/reputation/:agentName', (req, res) => {
   }
 });
 
-// Scrape status endpoint
-let lastScrapeTime = null;
-let scrapeInProgress = false;
-
+// Scrape status endpoint - enhanced with progress tracking
 router.get('/api/scrape/status', (req, res) => {
-  const snapshotCount = fs.existsSync(DATA_DIR) 
-    ? fs.readdirSync(DATA_DIR).filter(f => f.startsWith('snapshot-')).length 
-    : 0;
-  
-  res.json({
-    lastScrape: lastScrapeTime?.toISOString() || null,
-    scrapeInProgress,
-    snapshotCount
-  });
+  try {
+    const snapshotCount = fs.existsSync(DATA_DIR) 
+      ? fs.readdirSync(DATA_DIR).filter(f => f.startsWith('snapshot-')).length 
+      : 0;
+    
+    // Get real-time progress from scraper
+    const progress = getScrapeProgress();
+    
+    // Get last scrape time from latest.json
+    let lastScrapeTime = null;
+    try {
+      const latest = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'latest.json'), 'utf8'));
+      lastScrapeTime = latest.timestamp;
+    } catch (_) {}
+    
+    const percentComplete = progress.totalItems > 0 
+      ? Math.round((progress.completedItems / progress.totalItems) * 100)
+      : 0;
+    
+    res.json({
+      lastScrape: lastScrapeTime,
+      scrapeInProgress: progress.inProgress,
+      phase: progress.phase,
+      percentComplete,
+      itemsCompleted: progress.completedItems,
+      itemsTotal: progress.totalItems,
+      estimatedCompletion: progress.estimatedCompletion,
+      snapshotCount
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Staleness tracking endpoint
+router.get('/api/staleness', (req, res) => {
+  try {
+    const report = getStalenessReport();
+    
+    // Apply query filters
+    const { level, limit: rawLimit } = req.query;
+    let agents = report.agents;
+    
+    // Filter by staleness level
+    if (level) {
+      agents = agents.filter(a => a.staleness_level === level.toLowerCase());
+    }
+    
+    // Limit results
+    const limit = Math.min(parseInt(rawLimit) || 100, 1000);
+    agents = agents.slice(0, limit);
+    
+    res.json({
+      summary: {
+        timestamp: report.timestamp,
+        threshold_hours: report.threshold_hours,
+        total_agents: report.total_agents,
+        stale_agents: report.stale_agents,
+        stale_percentage: report.stale_percentage,
+        staleness_levels: report.staleness_levels
+      },
+      agents
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Agent-specific staleness
+router.get('/api/staleness/:agentName', (req, res) => {
+  try {
+    const freshness = getAgentFreshness(req.params.agentName);
+    if (!freshness.exists) {
+      return res.status(404).json({ error: `Agent '${req.params.agentName}' not found in freshness tracking` });
+    }
+    res.json(freshness);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 module.exports = router;

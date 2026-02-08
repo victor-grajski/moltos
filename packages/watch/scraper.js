@@ -6,14 +6,43 @@
 
 const fs = require('fs');
 const path = require('path');
+const { updateAgentFreshness } = require('./staleness.js');
 
 const API_BASE = 'https://www.moltbook.com/api/v1';
 const API_KEY = process.env.MOLTBOOK_API_KEY || 'moltbook_sk_FrfNTK2tHCYxm004W3aWm12G5tecUWyV';
 const DATA_DIR = path.join(__dirname, '../../data/watch');
 const RATE_LIMIT_MS = 200;
 
+// Scrape progress tracking
+let scrapeProgress = {
+  inProgress: false,
+  phase: null, // 'submolts', 'posts', 'comments', 'profiles'
+  totalItems: 0,
+  completedItems: 0,
+  startTime: null,
+  estimatedCompletion: null
+};
+
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+function updateScrapeProgress(phase, completed, total) {
+  scrapeProgress.phase = phase;
+  scrapeProgress.completedItems = completed;
+  scrapeProgress.totalItems = total;
+  
+  if (scrapeProgress.startTime && total > 0) {
+    const elapsed = Date.now() - scrapeProgress.startTime;
+    const rate = completed / elapsed; // items per ms
+    const remaining = total - completed;
+    const eta = remaining / rate;
+    scrapeProgress.estimatedCompletion = new Date(Date.now() + eta).toISOString();
+  }
+}
+
+function getScrapeProgress() {
+  return { ...scrapeProgress };
 }
 
 async function fetchAPI(endpoint, params = {}) {
@@ -137,10 +166,14 @@ async function scrapeAgentProfiles(posts, postComments) {
   }
 
   console.log(`👤 Scraping ${authorNames.size} agent profiles...`);
+  updateScrapeProgress('profiles', 0, authorNames.size);
+  
   const profiles = {};
+  const authorArray = Array.from(authorNames);
   let i = 0;
 
-  for (const name of authorNames) {
+  for (const name of authorArray) {
+    const timestamp = new Date().toISOString();
     try {
       const data = await fetchAPI('/agents/profile', { name });
       profiles[name] = {
@@ -149,15 +182,21 @@ async function scrapeAgentProfiles(posts, postComments) {
         follower_count: data.follower_count,
         following_count: data.following_count,
         created_at: data.created_at,
+        last_updated: timestamp
       };
+      
+      // Update freshness tracking immediately after scraping each agent
+      updateAgentFreshness([name], timestamp);
     } catch (e) {
       // Profile might not exist or be private
-      profiles[name] = { name, error: e.message };
+      profiles[name] = { name, error: e.message, last_updated: timestamp };
     }
     await sleep(RATE_LIMIT_MS);
     i++;
+    updateScrapeProgress('profiles', i, authorArray.length);
+    
     if (i % 50 === 0) {
-      console.log(`  ${i}/${authorNames.size} profiles...`);
+      console.log(`  ${i}/${authorArray.length} profiles...`);
     }
   }
 
@@ -196,21 +235,32 @@ async function runScrape() {
   const timestamp = new Date().toISOString();
   const now = new Date();
   console.log(`\n=== Full Moltbook Scrape: ${timestamp} ===\n`);
+  
+  // Initialize scrape progress
+  scrapeProgress.inProgress = true;
+  scrapeProgress.startTime = Date.now();
+  scrapeProgress.phase = 'starting';
+  scrapeProgress.completedItems = 0;
+  scrapeProgress.totalItems = 0;
 
-  // 1. Submolts
-  const submolts = await scrapeSubmolts();
+  try {
+    // 1. Submolts
+    updateScrapeProgress('submolts', 0, 0);
+    const submolts = await scrapeSubmolts();
 
-  // 2. All posts
-  const rawPosts = await scrapeAllPosts();
+    // 2. All posts
+    updateScrapeProgress('posts', 0, 0);
+    const rawPosts = await scrapeAllPosts();
 
-  // 3. Comments for all posts
-  const postComments = await scrapeAllComments(rawPosts);
+    // 3. Comments for all posts
+    updateScrapeProgress('comments', 0, rawPosts.length);
+    const postComments = await scrapeAllComments(rawPosts);
 
-  // 4. Agent profiles
-  const agentProfiles = await scrapeAgentProfiles(rawPosts, postComments);
+    // 4. Agent profiles (updates freshness per-agent)
+    const agentProfiles = await scrapeAgentProfiles(rawPosts, postComments);
 
-  // 5. Build heatmap
-  const heatmapData = buildHeatmapData(rawPosts, postComments);
+    // 5. Build heatmap
+    const heatmapData = buildHeatmapData(rawPosts, postComments);
 
   // 6. Categorize submolts
   const nowMs = Date.now();
@@ -260,20 +310,43 @@ async function runScrape() {
     heatmapData,
   };
 
-  // 8. Save
-  const filename = `snapshot-${now.toISOString().replace(/[:.]/g, '-').slice(0, 16)}.json`;
-  fs.writeFileSync(path.join(DATA_DIR, filename), JSON.stringify(snapshot));
-  fs.writeFileSync(path.join(DATA_DIR, 'latest.json'), JSON.stringify({
-    timestamp,
-    file: filename,
-    stats: snapshot.stats
-  }, null, 2));
+    // 8. Save using shadow copy pattern
+    // Write new snapshot with a temp name, then atomically swap
+    const filename = `snapshot-${now.toISOString().replace(/[:.]/g, '-').slice(0, 16)}.json`;
+    const tempFilename = `${filename}.tmp`;
+    const snapshotPath = path.join(DATA_DIR, filename);
+    const tempPath = path.join(DATA_DIR, tempFilename);
+    
+    // Write to temp file first
+    updateScrapeProgress('saving', 0, 1);
+    fs.writeFileSync(tempPath, JSON.stringify(snapshot));
+    
+    // Atomically rename (replaces old file if exists)
+    fs.renameSync(tempPath, snapshotPath);
+    
+    // Update latest.json with shadow copy pattern
+    const latestTemp = path.join(DATA_DIR, 'latest.json.tmp');
+    fs.writeFileSync(latestTemp, JSON.stringify({
+      timestamp,
+      file: filename,
+      stats: snapshot.stats
+    }, null, 2));
+    fs.renameSync(latestTemp, path.join(DATA_DIR, 'latest.json'));
 
-  console.log(`\n✅ Snapshot saved: ${filename}`);
-  console.log(`   Posts: ${snapshot.stats.postsScraped}, Comments: ${snapshot.stats.commentsScraped}, Profiles: ${snapshot.stats.agentProfilesScraped}`);
-  console.log('\n=== Scrape complete ===\n');
+    console.log(`\n✅ Snapshot saved: ${filename}`);
+    console.log(`   Posts: ${snapshot.stats.postsScraped}, Comments: ${snapshot.stats.commentsScraped}, Profiles: ${snapshot.stats.agentProfilesScraped}`);
+    console.log('\n=== Scrape complete ===\n');
+    
+    scrapeProgress.inProgress = false;
+    scrapeProgress.phase = 'complete';
+    scrapeProgress.completedItems = scrapeProgress.totalItems;
 
-  return snapshot;
+    return snapshot;
+  } catch (error) {
+    scrapeProgress.inProgress = false;
+    scrapeProgress.phase = 'error';
+    throw error;
+  }
 }
 
 // ============ INCREMENTAL SCRAPE ============
@@ -281,69 +354,92 @@ async function runScrape() {
 async function runIncrementalScrape() {
   const timestamp = new Date().toISOString();
   console.log(`\n=== Incremental Moltbook Scrape: ${timestamp} ===\n`);
+  
+  // Initialize scrape progress
+  scrapeProgress.inProgress = true;
+  scrapeProgress.startTime = Date.now();
+  scrapeProgress.phase = 'incremental_start';
+  scrapeProgress.completedItems = 0;
+  scrapeProgress.totalItems = 0;
 
-  // Load existing snapshot to merge into
-  let existing = null;
   try {
-    const latestMeta = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'latest.json'), 'utf8'));
-    existing = JSON.parse(fs.readFileSync(path.join(DATA_DIR, latestMeta.file), 'utf8'));
-  } catch (_) {}
+    // Load existing snapshot to merge into
+    let existing = null;
+    try {
+      const latestMeta = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'latest.json'), 'utf8'));
+      existing = JSON.parse(fs.readFileSync(path.join(DATA_DIR, latestMeta.file), 'utf8'));
+    } catch (_) {}
 
-  if (!existing) {
-    console.log('  No existing snapshot found, falling back to full scrape');
-    return runScrape();
-  }
-
-  // 1. Fetch recent posts (limit 50)
-  console.log('📝 Fetching recent posts...');
-  let recentPosts = [];
-  try {
-    const data = await fetchAPI('/posts', { sort: 'new', limit: 50 });
-    recentPosts = data.posts || [];
-  } catch (e) {
-    console.error('  Error fetching recent posts:', e.message);
-  }
-  console.log(`  ✅ ${recentPosts.length} recent posts fetched`);
-
-  // 2. Comments for recent posts
-  const postComments = await scrapeAllComments(recentPosts);
-
-  // 3. Find new authors not already in snapshot
-  const existingAuthors = new Set(Object.keys(existing.agentProfiles || {}));
-  const newAuthors = new Set();
-  for (const post of recentPosts) {
-    if (post.author?.name && !existingAuthors.has(post.author.name)) {
-      newAuthors.add(post.author.name);
+    if (!existing) {
+      console.log('  No existing snapshot found, falling back to full scrape');
+      scrapeProgress.phase = 'fallback_to_full';
+      return runScrape();
     }
-  }
-  for (const comments of Object.values(postComments)) {
-    for (const c of comments) {
-      if (c.author?.name && !existingAuthors.has(c.author.name)) {
-        newAuthors.add(c.author.name);
+
+    // 1. Fetch recent posts (limit 50)
+    console.log('📝 Fetching recent posts...');
+    updateScrapeProgress('incremental_posts', 0, 50);
+    let recentPosts = [];
+    try {
+      const data = await fetchAPI('/posts', { sort: 'new', limit: 50 });
+      recentPosts = data.posts || [];
+    } catch (e) {
+      console.error('  Error fetching recent posts:', e.message);
+    }
+    console.log(`  ✅ ${recentPosts.length} recent posts fetched`);
+
+    // 2. Comments for recent posts
+    updateScrapeProgress('incremental_comments', 0, recentPosts.length);
+    const postComments = await scrapeAllComments(recentPosts);
+
+    // 3. Find new authors not already in snapshot
+    const existingAuthors = new Set(Object.keys(existing.agentProfiles || {}));
+    const newAuthors = new Set();
+    for (const post of recentPosts) {
+      if (post.author?.name && !existingAuthors.has(post.author.name)) {
+        newAuthors.add(post.author.name);
       }
     }
-  }
-
-  console.log(`👤 Fetching ${newAuthors.size} new agent profiles...`);
-  const newProfiles = {};
-  for (const name of newAuthors) {
-    try {
-      const data = await fetchAPI('/agents/profile', { name });
-      newProfiles[name] = {
-        name: data.name || name,
-        karma: data.karma,
-        follower_count: data.follower_count,
-        following_count: data.following_count,
-        created_at: data.created_at,
-      };
-    } catch (e) {
-      newProfiles[name] = { name, error: e.message };
+    for (const comments of Object.values(postComments)) {
+      for (const c of comments) {
+        if (c.author?.name && !existingAuthors.has(c.author.name)) {
+          newAuthors.add(c.author.name);
+        }
+      }
     }
-    await sleep(RATE_LIMIT_MS);
-  }
 
-  // 4. Update submolts
-  const submolts = await scrapeSubmolts();
+    console.log(`👤 Fetching ${newAuthors.size} new agent profiles...`);
+    updateScrapeProgress('incremental_profiles', 0, newAuthors.size);
+    const newProfiles = {};
+    const newAuthorsArray = Array.from(newAuthors);
+    let profileCount = 0;
+    
+    for (const name of newAuthorsArray) {
+      const timestamp = new Date().toISOString();
+      try {
+        const data = await fetchAPI('/agents/profile', { name });
+        newProfiles[name] = {
+          name: data.name || name,
+          karma: data.karma,
+          follower_count: data.follower_count,
+          following_count: data.following_count,
+          created_at: data.created_at,
+          last_updated: timestamp
+        };
+        
+        // Update freshness immediately
+        updateAgentFreshness([name], timestamp);
+      } catch (e) {
+        newProfiles[name] = { name, error: e.message, last_updated: timestamp };
+      }
+      await sleep(RATE_LIMIT_MS);
+      profileCount++;
+      updateScrapeProgress('incremental_profiles', profileCount, newAuthorsArray.length);
+    }
+
+    // 4. Update submolts
+    updateScrapeProgress('incremental_submolts', 0, 0);
+    const submolts = await scrapeSubmolts();
 
   // 5. Merge: add new posts, update existing posts if they appear in recent
   const existingPostMap = new Map();
@@ -425,21 +521,43 @@ async function runIncrementalScrape() {
     heatmapData,
   };
 
-  // Save
-  const now = new Date();
-  const filename = `snapshot-${now.toISOString().replace(/[:.]/g, '-').slice(0, 16)}.json`;
-  fs.writeFileSync(path.join(DATA_DIR, filename), JSON.stringify(snapshot));
-  fs.writeFileSync(path.join(DATA_DIR, 'latest.json'), JSON.stringify({
-    timestamp,
-    file: filename,
-    stats: snapshot.stats
-  }, null, 2));
+    // Save using shadow copy pattern
+    const now = new Date();
+    const filename = `snapshot-${now.toISOString().replace(/[:.]/g, '-').slice(0, 16)}.json`;
+    const tempFilename = `${filename}.tmp`;
+    const snapshotPath = path.join(DATA_DIR, filename);
+    const tempPath = path.join(DATA_DIR, tempFilename);
+    
+    // Write to temp file first
+    updateScrapeProgress('saving', 0, 1);
+    fs.writeFileSync(tempPath, JSON.stringify(snapshot));
+    
+    // Atomically rename
+    fs.renameSync(tempPath, snapshotPath);
+    
+    // Update latest.json with shadow copy pattern
+    const latestTemp = path.join(DATA_DIR, 'latest.json.tmp');
+    fs.writeFileSync(latestTemp, JSON.stringify({
+      timestamp,
+      file: filename,
+      stats: snapshot.stats
+    }, null, 2));
+    fs.renameSync(latestTemp, path.join(DATA_DIR, 'latest.json'));
 
-  console.log(`\n✅ Incremental snapshot saved: ${filename}`);
-  console.log(`   Merged posts: ${mergedPosts.length}, New profiles: ${newAuthors.size}`);
-  console.log('\n=== Incremental scrape complete ===\n');
+    console.log(`\n✅ Incremental snapshot saved: ${filename}`);
+    console.log(`   Merged posts: ${mergedPosts.length}, New profiles: ${newAuthorsArray.length}`);
+    console.log('\n=== Incremental scrape complete ===\n');
+    
+    scrapeProgress.inProgress = false;
+    scrapeProgress.phase = 'complete';
+    scrapeProgress.completedItems = scrapeProgress.totalItems;
 
-  return snapshot;
+    return snapshot;
+  } catch (error) {
+    scrapeProgress.inProgress = false;
+    scrapeProgress.phase = 'error';
+    throw error;
+  }
 }
 
 // Run if called directly
@@ -450,4 +568,14 @@ if (require.main === module) {
   });
 }
 
-module.exports = { runScrape, runIncrementalScrape, fetchAPI, scrapeSubmolts, scrapeAllPosts, scrapeAllComments, scrapeAgentProfiles, buildHeatmapData };
+module.exports = { 
+  runScrape, 
+  runIncrementalScrape, 
+  fetchAPI, 
+  scrapeSubmolts, 
+  scrapeAllPosts, 
+  scrapeAllComments, 
+  scrapeAgentProfiles, 
+  buildHeatmapData,
+  getScrapeProgress
+};
