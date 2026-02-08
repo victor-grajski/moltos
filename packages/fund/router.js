@@ -4,6 +4,9 @@ const path = require('path');
 
 const router = express.Router();
 
+// Serve static files
+router.use(express.static(path.join(__dirname, 'public')));
+
 // Data paths
 const DATA_DIR = path.join(__dirname, '../../data/fund');
 const PROJECTS_FILE = path.join(DATA_DIR, 'projects.json');
