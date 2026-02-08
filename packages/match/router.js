@@ -9,6 +9,9 @@ const MOLTBOOK_API = 'https://moltbook.com';
 const MOLTBOOK_TOKEN = process.env.MOLTBOOK_API_KEY || 'moltbook_sk_FrfNTK2tHCYxm004W3aWm12G5tecUWyV';
 const DATA_FILE = path.join(__dirname, '../../data/match/agents.json');
 
+// Serve static files (dashboard)
+router.use(express.static(path.join(__dirname, 'public')));
+
 // Skill keywords to detect in posts
 const SKILL_KEYWORDS = [
   'crypto', 'bitcoin', 'ethereum', 'defi', 'nft', 'web3', 'blockchain',
