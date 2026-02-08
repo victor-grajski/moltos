@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MoltMarket — Agent Economy Analytics</title>
+    <title>MoltMarket — Unified On-Chain Intelligence</title>
     <style>
         * {
             margin: 0;
@@ -36,10 +36,51 @@
             font-size: 1.1rem;
         }
         
+        .header .subtitle {
+            color: #00ff88;
+            font-size: 0.95rem;
+            margin-top: 0.5rem;
+        }
+        
         .container {
             max-width: 1400px;
             margin: 0 auto;
             padding: 2rem;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #333;
+        }
+        
+        .tab {
+            padding: 1rem 2rem;
+            background: transparent;
+            border: none;
+            color: #999;
+            font-size: 1rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .tab.active {
+            color: #00d4ff;
+            border-bottom-color: #00d4ff;
+        }
+        
+        .tab:hover {
+            color: #00d4ff;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
         }
         
         .stats-grid {
@@ -123,57 +164,6 @@
             background: #444;
         }
         
-        .wallet-list {
-            display: grid;
-            gap: 1rem;
-        }
-        
-        .wallet-item {
-            background: #1a1a1b;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: all 0.2s;
-        }
-        
-        .wallet-item:hover {
-            border-color: #00d4ff;
-        }
-        
-        .wallet-info {
-            flex: 1;
-        }
-        
-        .wallet-label {
-            font-weight: 600;
-            color: #fff;
-            margin-bottom: 0.25rem;
-        }
-        
-        .wallet-address {
-            color: #999;
-            font-family: monospace;
-            font-size: 0.85rem;
-        }
-        
-        .wallet-chain {
-            display: inline-block;
-            padding: 0.2rem 0.6rem;
-            background: #333;
-            color: #00d4ff;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            margin-left: 0.5rem;
-        }
-        
-        .wallet-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-        
         .btn-small {
             padding: 0.4rem 0.8rem;
             font-size: 0.85rem;
@@ -186,6 +176,65 @@
         
         .btn-danger:hover {
             background: #d32f2f;
+        }
+        
+        .wallet-list, .watcher-list {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .wallet-item, .watcher-item {
+            background: #1a1a1b;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        
+        .wallet-item:hover, .watcher-item:hover {
+            border-color: #00d4ff;
+        }
+        
+        .wallet-info, .watcher-info {
+            flex: 1;
+        }
+        
+        .wallet-label, .watcher-name {
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 0.25rem;
+        }
+        
+        .wallet-address, .watcher-config {
+            color: #999;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        
+        .wallet-chain, .watcher-status {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            background: #333;
+            color: #00d4ff;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+        }
+        
+        .watcher-status.active {
+            color: #00ff88;
+        }
+        
+        .watcher-status.cancelled {
+            color: #f44336;
+        }
+        
+        .wallet-actions, .watcher-actions {
+            display: flex;
+            gap: 0.5rem;
         }
         
         .transaction-feed {
@@ -251,6 +300,8 @@
             padding: 2rem;
             max-width: 500px;
             width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
         }
         
         .modal-header {
@@ -270,7 +321,7 @@
             font-weight: 500;
         }
         
-        .form-input {
+        .form-input, .form-select, .form-textarea {
             width: 100%;
             padding: 0.75rem;
             background: #1a1a1b;
@@ -280,9 +331,14 @@
             font-size: 1rem;
         }
         
-        .form-input:focus {
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
             outline: none;
             border-color: #00d4ff;
+        }
+        
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
         }
         
         .form-actions {
@@ -297,40 +353,42 @@
             color: #666;
         }
         
-        .trending-list {
+        .alias-selector {
             display: grid;
-            gap: 0.75rem;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
         }
         
-        .trending-item {
-            background: #1a1a1b;
-            border: 1px solid #333;
-            border-radius: 8px;
+        .alias-btn {
             padding: 0.75rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            background: #1a1a1b;
+            border: 2px solid #333;
+            border-radius: 6px;
+            color: #999;
+            cursor: pointer;
+            transition: all 0.2s;
         }
         
-        .trending-rank {
-            font-size: 1.5rem;
-            font-weight: bold;
+        .alias-btn:hover {
+            border-color: #00d4ff;
             color: #00d4ff;
-            margin-right: 1rem;
         }
         
-        .trending-info {
-            flex: 1;
+        .alias-btn.selected {
+            background: #00d4ff;
+            color: #1a1a1b;
+            border-color: #00d4ff;
         }
         
-        .trending-label {
-            font-weight: 600;
-            color: #fff;
-        }
-        
-        .trending-count {
-            color: #00ff88;
-            font-weight: 600;
+        .info-box {
+            background: rgba(0, 212, 255, 0.1);
+            border-left: 3px solid #00d4ff;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: #999;
         }
         
         @media (max-width: 768px) {
@@ -341,64 +399,91 @@
             .stats-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
+            
+            .tabs {
+                overflow-x: auto;
+            }
+            
+            .tab {
+                padding: 0.75rem 1rem;
+                font-size: 0.9rem;
+            }
         }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>📊 MoltMarket</h1>
-        <p>Agent economy on-chain analytics</p>
+        <p>Unified on-chain intelligence layer</p>
+        <div class="subtitle">Wallet tracking analytics + Webhook monitoring (x402-sentinel)</div>
     </div>
     
     <div class="container">
-        <!-- Stats Overview -->
-        <div class="stats-grid" id="stats-grid">
-            <div class="stat-card">
-                <div class="stat-value" id="stat-volume">$0</div>
-                <div class="stat-label">Total Volume</div>
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('analytics')">📈 Analytics</button>
+            <button class="tab" onclick="switchTab('monitoring')">🔔 Monitoring</button>
+            <button class="tab" onclick="switchTab('wallets')">💼 Tracked Wallets</button>
+        </div>
+        
+        <!-- Analytics Tab -->
+        <div class="tab-content active" id="analytics-tab">
+            <div class="stats-grid" id="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-volume">$0</div>
+                    <div class="stat-label">Total Volume</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-transactions">0</div>
+                    <div class="stat-label">Transactions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-wallets">0</div>
+                    <div class="stat-label">Active Wallets</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-watchers">0</div>
+                    <div class="stat-label">Active Monitors</div>
+                </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-value" id="stat-transactions">0</div>
-                <div class="stat-label">Transactions</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="stat-wallets">0</div>
-                <div class="stat-label">Active Wallets</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="stat-tracked">0</div>
-                <div class="stat-label">Tracked Wallets</div>
+            
+            <!-- Transaction Feed -->
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">📈 Recent Transactions</h2>
+                </div>
+                <div class="transaction-feed" id="transaction-feed">
+                    <div class="empty-state">No transactions yet</div>
+                </div>
             </div>
         </div>
         
-        <!-- Tracked Wallets -->
-        <div class="section">
-            <div class="section-header">
-                <h2 class="section-title">💼 Tracked Wallets</h2>
-                <button class="btn" onclick="openAddWalletModal()">+ Add Wallet</button>
-            </div>
-            <div class="wallet-list" id="wallet-list">
-                <div class="empty-state">No wallets tracked yet. Add one to get started!</div>
-            </div>
-        </div>
-        
-        <!-- Trending Wallets -->
-        <div class="section">
-            <div class="section-header">
-                <h2 class="section-title">🔥 Trending Wallets (24h)</h2>
-            </div>
-            <div class="trending-list" id="trending-list">
-                <div class="empty-state">No trending data available</div>
+        <!-- Monitoring Tab -->
+        <div class="tab-content" id="monitoring-tab">
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">🔔 Active Monitors</h2>
+                    <button class="btn" onclick="openCreateWatcherModal()">+ Create Monitor</button>
+                </div>
+                <div class="info-box">
+                    💡 Webhook monitoring with SLA tracking. Get notified when on-chain conditions are met (wallet balances, token prices, etc.)
+                </div>
+                <div class="watcher-list" id="watcher-list">
+                    <div class="empty-state">No monitors active. Create one to get started!</div>
+                </div>
             </div>
         </div>
         
-        <!-- Transaction Feed -->
-        <div class="section">
-            <div class="section-header">
-                <h2 class="section-title">📈 Recent Transactions</h2>
-            </div>
-            <div class="transaction-feed" id="transaction-feed">
-                <div class="empty-state">No transactions yet</div>
+        <!-- Tracked Wallets Tab -->
+        <div class="tab-content" id="wallets-tab">
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">💼 Tracked Wallets</h2>
+                    <button class="btn" onclick="openAddWalletModal()">+ Add Wallet</button>
+                </div>
+                <div class="wallet-list" id="wallet-list">
+                    <div class="empty-state">No wallets tracked yet</div>
+                </div>
             </div>
         </div>
     </div>
@@ -420,7 +505,7 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Chain</label>
-                    <select class="form-input" id="wallet-chain">
+                    <select class="form-select" id="wallet-chain">
                         <option value="base">Base</option>
                         <option value="ethereum">Ethereum</option>
                         <option value="optimism">Optimism</option>
@@ -435,7 +520,84 @@
         </div>
     </div>
     
+    <!-- Create Watcher Modal -->
+    <div class="modal" id="create-watcher-modal">
+        <div class="modal-content">
+            <h2 class="modal-header">Create Wallet Monitor</h2>
+            <form id="create-watcher-form" onsubmit="createWatcher(event)">
+                <div class="form-group">
+                    <label class="form-label">Monitoring Speed</label>
+                    <div class="alias-selector">
+                        <div class="alias-btn selected" data-alias="fast" onclick="selectAlias('fast')">
+                            <strong>⚡ Fast</strong><br>
+                            <small>5min intervals</small>
+                        </div>
+                        <div class="alias-btn" data-alias="normal" onclick="selectAlias('normal')">
+                            <strong>📊 Normal</strong><br>
+                            <small>15min intervals</small>
+                        </div>
+                        <div class="alias-btn" data-alias="slow" onclick="selectAlias('slow')">
+                            <strong>🐢 Slow</strong><br>
+                            <small>60min intervals</small>
+                        </div>
+                        <div class="alias-btn" data-alias="whale" onclick="selectAlias('whale')">
+                            <strong>🐋 Whale</strong><br>
+                            <small>Premium 5min</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Wallet Address</label>
+                    <input type="text" class="form-input" id="monitor-address" 
+                           placeholder="0x..." required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Alert Condition</label>
+                    <select class="form-select" id="monitor-direction">
+                        <option value="below">Balance falls below</option>
+                        <option value="above">Balance rises above</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Threshold (ETH)</label>
+                    <input type="number" step="0.001" class="form-input" id="monitor-threshold" 
+                           placeholder="1.0" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Webhook URL</label>
+                    <input type="url" class="form-input" id="monitor-webhook" 
+                           placeholder="https://your-endpoint.com/webhook" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Chain</label>
+                    <select class="form-select" id="monitor-chain">
+                        <option value="base">Base</option>
+                        <option value="ethereum">Ethereum</option>
+                        <option value="optimism">Optimism</option>
+                        <option value="arbitrum">Arbitrum</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn secondary" onclick="closeCreateWatcherModal()">Cancel</button>
+                    <button type="submit" class="btn">Create Monitor</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
     <script>
+        let selectedAlias = 'fast';
+        let watcherTypes = [];
+        
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
+        
         // Load data
         async function loadData() {
             try {
@@ -446,22 +608,7 @@
                 document.getElementById('stat-volume').textContent = '$' + parseFloat(stats.totalVolume).toFixed(2);
                 document.getElementById('stat-transactions').textContent = stats.transactionCount;
                 document.getElementById('stat-wallets').textContent = stats.activeWallets;
-                document.getElementById('stat-tracked').textContent = stats.trackedWallets;
-                
-                // Load trending wallets
-                if (stats.trendingWallets && stats.trendingWallets.length > 0) {
-                    const trendingList = document.getElementById('trending-list');
-                    trendingList.innerHTML = stats.trendingWallets.map((w, i) => `
-                        <div class="trending-item">
-                            <span class="trending-rank">#${i + 1}</span>
-                            <div class="trending-info">
-                                <div class="trending-label">${w.label}</div>
-                                <div class="wallet-address">${w.address}</div>
-                            </div>
-                            <span class="trending-count">${w.transactionCount} txs</span>
-                        </div>
-                    `).join('');
-                }
+                document.getElementById('stat-watchers').textContent = stats.activeWatchers || 0;
                 
                 // Load wallets
                 const walletsRes = await fetch('/market/api/wallets');
@@ -507,11 +654,16 @@
                             <div class="tx-details">
                                 <div>${tx.walletLabel || tx.wallet} • ${tx.chain}</div>
                                 <div>${new Date(tx.timestamp).toLocaleString()}</div>
-                                ${tx.mock ? '<div style="color: #ff9800;">Mock data for demo</div>' : ''}
                             </div>
                         </div>
                     `).join('');
                 }
+                
+                // Load watcher types
+                const typesRes = await fetch('/market/api/monitoring/types');
+                const typesData = await typesRes.json();
+                watcherTypes = typesData.types || [];
+                
             } catch (error) {
                 console.error('Failed to load data:', error);
             }
@@ -563,7 +715,7 @@
             }
         }
         
-        // Filter transactions by wallet
+        // Filter transactions
         async function filterTransactions(wallet) {
             try {
                 const res = await fetch(`/market/api/transactions?wallet=${wallet}`);
@@ -591,6 +743,69 @@
             }
         }
         
+        // Create watcher
+        async function createWatcher(event) {
+            event.preventDefault();
+            
+            if (watcherTypes.length === 0) {
+                alert('No watcher types available');
+                return;
+            }
+            
+            // Get the wallet-balance type
+            const walletBalanceType = watcherTypes.find(t => t.executorId === 'wallet-balance');
+            if (!walletBalanceType) {
+                alert('Wallet balance monitoring not available');
+                return;
+            }
+            
+            const address = document.getElementById('monitor-address').value;
+            const threshold = parseFloat(document.getElementById('monitor-threshold').value);
+            const direction = document.getElementById('monitor-direction').value;
+            const webhook = document.getElementById('monitor-webhook').value;
+            const chain = document.getElementById('monitor-chain').value;
+            
+            try {
+                const res = await fetch('/market/api/monitoring/watchers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        typeId: walletBalanceType.id,
+                        alias: selectedAlias,
+                        config: {
+                            address,
+                            threshold,
+                            direction,
+                            chain
+                        },
+                        webhook,
+                        customerId: 'anonymous'
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok || res.status === 201) {
+                    alert('Monitor created successfully! Webhook will fire when condition is met.');
+                    closeCreateWatcherModal();
+                    loadData();
+                } else {
+                    alert(data.error || 'Failed to create monitor');
+                }
+            } catch (error) {
+                alert('Failed to create monitor: ' + error.message);
+            }
+        }
+        
+        // Alias selection
+        function selectAlias(alias) {
+            selectedAlias = alias;
+            document.querySelectorAll('.alias-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+        }
+        
         // Modal functions
         function openAddWalletModal() {
             document.getElementById('add-wallet-modal').classList.add('active');
@@ -599,6 +814,19 @@
         function closeAddWalletModal() {
             document.getElementById('add-wallet-modal').classList.remove('active');
             document.getElementById('add-wallet-form').reset();
+        }
+        
+        function openCreateWatcherModal() {
+            document.getElementById('create-watcher-modal').classList.add('active');
+        }
+        
+        function closeCreateWatcherModal() {
+            document.getElementById('create-watcher-modal').classList.remove('active');
+            document.getElementById('create-watcher-form').reset();
+            selectedAlias = 'fast';
+            document.querySelectorAll('.alias-btn').forEach((btn, i) => {
+                btn.classList.toggle('selected', i === 0);
+            });
         }
         
         // Initial load
